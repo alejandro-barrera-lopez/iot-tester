@@ -1,4 +1,5 @@
 import time
+from serial.tools import list_ports
 from ppk2_api.ppk2_api import PPK2_API
 
 class PowerMeterPPK2:
@@ -19,40 +20,43 @@ class PowerMeterPPK2:
         self.ppk2_api = None
 
     def connect(self):
-        """Encuentra y se conecta al PPK2."""
-        print(f"Buscando PPK2 (S/N: {self.serial_number or 'cualquiera'})...")
-        try:
-            # Esta función devuelve una lista de tuplas: [(puerto, S/N), ...]
-            devices = PPK2_API.list_devices()
-        except Exception as e:
-            print(f"Error al listar dispositivos: {e}")
-            raise
+        """
+        Encuentra y se conecta al PPK2 usando escaneo manual de puertos serie,
+        que es más fiable en algunas plataformas como Raspberry Pi.
+        """
 
-        if not devices:
-            raise ConnectionError("No se encontró ningún PPK2 conectado.")
+        print("Buscando PPK2 por escaneo manual de puertos serie...")
 
-        device_info = None
-        if self.serial_number:
-            # Buscamos en la lista de tuplas. El S/N está en la posición 1.
-            device_info = next((d for d in devices if d[1] == self.serial_number), None)
-            if not device_info:
-                raise ConnectionError(f"No se encontró el PPK2 con S/N {self.serial_number}.")
-        else:
-            if len(devices) > 1:
-                print("ADVERTENCIA: Se encontraron múltiples PPK2. Conectando al primero.")
-            device_info = devices[0]
+        found_port = None
+        ports = list_ports.comports()
+        for port in ports:
+            # Criterios para identificar un PPK2: Vendor ID (VID) y descripción.
+            # El VID 6421 pertenece a Nordic Semiconductor.
+            if port.vid == 6421 and "PPK2" in port.description:
+                found_port = port.device
+                print(f"Puerto candidato encontrado: {found_port}")
+                break  # Nos quedamos con el primer puerto que coincida
 
-        # El puerto está en la posición 0 de la tupla
-        self.port = device_info[0]
+        if not found_port:
+            raise ConnectionError("No se encontró ningún puerto que parezca ser un PPK2.")
+
+        self.port = found_port
 
         try:
+            # Intentamos conectar al puerto encontrado
             self.ppk2_api = PPK2_API(self.port)
-            # La línea get_modifiers() se llama después para asegurar que el objeto api existe
             self.ppk2_api.get_modifiers()
-            actual_serial = self.ppk2_api.serial_number or "N/A"
-            print(f"Conectado al PPK2 en {self.port} (S/N: {actual_serial}).")
+
+            # Ahora verificamos el número de serie si el usuario especificó uno
+            actual_serial = self.ppk2_api.serial_number
+            if self.serial_number and self.serial_number != actual_serial:
+                self.disconnect() # Cerramos la conexión si no es el dispositivo correcto
+                raise ConnectionError(f"PPK2 encontrado en {self.port} pero tiene S/N {actual_serial}, se esperaba {self.serial_number}.")
+
+            print(f"Conectado al PPK2 en {self.port} (S/N: {actual_serial or 'N/A'}).")
+
         except Exception as e:
-            print(f"Error al instanciar la API del PPK2 en el puerto {self.port}: {e}")
+            print(f"Error al instanciar o verificar el PPK2 en el puerto {self.port}: {e}")
             raise
 
     def disconnect(self):
@@ -74,7 +78,7 @@ class PowerMeterPPK2:
         """Activa o desactiva la alimentación al dispositivo bajo test (DUT)."""
         if self.ppk2_api:
             power_state = "ON" if state else "OFF"
-            print(f"⚡ Alimentación DUT en {power_state}")
+            print(f"Alimentación DUT en {power_state}")
             self.ppk2_api.toggle_DUT_power(power_state)
 
     def measure_average_current(self, duration_s: float) -> float:

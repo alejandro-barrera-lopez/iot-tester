@@ -128,7 +128,6 @@ def launch_gui():
 
     root = ctk.CTk()
     app = MainWindow(root)
-    root.mainloop()
 
 if __name__ == "__main__":
     print("--- Iniciando PoC con librería pyhid_usb_relay ---")
@@ -146,7 +145,7 @@ if __name__ == "__main__":
         # poc_rs485_controller()
 
         # Probar INA3221
-        poc_ina3221()
+        #poc_ina3221()
 
         # Probar PPK2
         poc_ppk2()
