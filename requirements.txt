@@ -1,0 +1,2 @@
+pyserial
+pyhid_usb_relay
