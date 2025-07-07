@@ -93,7 +93,7 @@ def poc_ina3221():
     print("\n--- Prueba finalizada ---")
 
 def poc_ppk2():
-    print("--- PoC del Módulo de Potencia PPK2 ---")
+    print("--- PoC del la placa PPK2 ---")
 
     # 1. Cargar configuración
     ppk2_cfg = config.get("power_meter_ppk2", {})
