@@ -139,16 +139,16 @@ if __name__ == "__main__":
         # launch_gui()
 
         # Probar relés
-        # poc_relay_controller()
+        poc_relay_controller()
 
         # Probar RS485
         # poc_rs485_controller()
 
         # Probar INA3221
-        #poc_ina3221()
+        # poc_ina3221()
 
         # Probar PPK2
-        poc_ppk2()
+        # poc_ppk2()
 
     except Exception as e:
         print(f"\nOcurrió un error fatal: {e}")

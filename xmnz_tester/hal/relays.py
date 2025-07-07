@@ -50,14 +50,13 @@ class RelayController:
             relay_num (int): El número del relé a controlar (empezando en 1).
             state (bool): True para encender (ON), False para apagar (OFF).
         """
-        if self.relay_device is None:
-            raise ConnectionError("No conectado. Llama a 'connect()' primero.")
-
         if not 1 <= relay_num <= self.num_relays:
             raise ValueError(f"Número de relé inválido: {relay_num}. Debe estar entre 1 y {self.num_relays}.")
 
+        if self.relay_device is None:
+            raise ConnectionError("No conectado. Llama a 'connect()' primero.")
+
         print(f"Estableciendo relé #{relay_num} en {'ON' if state else 'OFF'}")
-        # La librería se encarga de la lógica de control
         self.relay_device.set_state(relay_num, state)
 
     def all_off(self):
