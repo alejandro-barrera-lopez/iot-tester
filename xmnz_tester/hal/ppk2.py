@@ -21,42 +21,45 @@ class PowerMeterPPK2:
 
     def connect(self):
         """
-        Encuentra y se conecta al PPK2 usando escaneo manual de puertos serie,
-        que es más fiable en algunas plataformas como Raspberry Pi.
+        Encuentra y se conecta al PPK2 usando escaneo manual de puertos serie.
+        Este método primero encuentra el puerto correcto y luego instancia la API.
         """
+        print(f"Buscando PPK2 (S/N: {self.serial_number or 'cualquiera'})...")
 
-        print("Buscando PPK2 por escaneo manual de puertos serie...")
+        all_ports = list_ports.comports()
+        found_port_info = None
 
-        found_port = None
-        ports = list_ports.comports()
-        for port in ports:
-            # Criterios para identificar un PPK2: Vendor ID (VID) y descripción.
-            # El VID 6421 pertenece a Nordic Semiconductor.
-            if port.vid == 6421 and "PPK2" in port.description:
-                found_port = port.device
-                print(f"Puerto candidato encontrado: {found_port}")
-                break  # Nos quedamos con el primer puerto que coincida
+        if self.serial_number:
+            # --- Caso 1: Se especificó un número de serie ---
+            # Buscamos el puerto que tenga exactamente ese número de serie.
+            for port in all_ports:
+                if port.serial_number == self.serial_number:
+                    found_port_info = port
+                    break
+            if not found_port_info:
+                raise ConnectionError(f"No se encontró el PPK2 con S/N {self.serial_number}.")
 
-        if not found_port:
-            raise ConnectionError("No se encontró ningún puerto que parezca ser un PPK2.")
+        else:
+            # --- Caso 2: No se especificó S/N ---
+            # Buscamos el primer dispositivo que parezca ser un PPK2.
+            for port in all_ports:
+                if port.vid == 6421 and "PPK2" in port.description:
+                    found_port_info = port
+                    break
+            if not found_port_info:
+                raise ConnectionError("No se encontró ningún puerto que parezca ser un PPK2.")
 
-        self.port = found_port
+        # --- Ahora que tenemos la información correcta, conectamos ---
+        self.port = found_port_info.device
+        actual_serial = found_port_info.serial_number or "N/A"
 
         try:
-            # Intentamos conectar al puerto encontrado
             self.ppk2_api = PPK2_API(self.port)
             self.ppk2_api.get_modifiers()
-
-            # Ahora verificamos el número de serie si el usuario especificó uno
-            actual_serial = self.ppk2_api.serial_number
-            if self.serial_number and self.serial_number != actual_serial:
-                self.disconnect() # Cerramos la conexión si no es el dispositivo correcto
-                raise ConnectionError(f"PPK2 encontrado en {self.port} pero tiene S/N {actual_serial}, se esperaba {self.serial_number}.")
-
-            print(f"Conectado al PPK2 en {self.port} (S/N: {actual_serial or 'N/A'}).")
+            print(f"Conectado al PPK2 en {self.port} (S/N: {actual_serial}).")
 
         except Exception as e:
-            print(f"Error al instanciar o verificar el PPK2 en el puerto {self.port}: {e}")
+            print(f"Error al instanciar la API del PPK2 en el puerto {self.port}: {e}")
             raise
 
     def disconnect(self):
