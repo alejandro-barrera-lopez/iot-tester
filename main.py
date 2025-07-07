@@ -128,6 +128,7 @@ def launch_gui():
 
     root = ctk.CTk()
     app = MainWindow(root)
+    root.mainloop()
 
 if __name__ == "__main__":
     print("--- Iniciando PoC con librería pyhid_usb_relay ---")
@@ -136,10 +137,10 @@ if __name__ == "__main__":
         # Cargar la configuración
         config = load_config()
 
-        # launch_gui()
+        launch_gui()
 
         # Probar relés
-        poc_relay_controller()
+        # poc_relay_controller()
 
         # Probar RS485
         # poc_rs485_controller()
