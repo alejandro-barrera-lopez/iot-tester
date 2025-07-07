@@ -67,10 +67,10 @@ def poc_ina3221():
     if not meter_cfg:
         raise ValueError("No se encontró la configuración 'power_meter_ina3221' en config.yaml")
 
-    # 2. Inicializar y conectar con el sensor usando 'with'
+    # 1. Inicializar y conectar con el sensor usando 'with'
     with PowerMeterINA3221(**meter_cfg) as power_meter:
 
-        # 3. Leer un canal específico
+        # 2. Leer un canal específico
         print("\nLeyendo canal 1...")
         data_ch1 = power_meter.read_channel(1)
 

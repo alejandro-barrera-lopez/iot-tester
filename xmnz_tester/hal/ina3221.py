@@ -5,7 +5,7 @@ class PowerMeterINA3221:
     Clase para interactuar con el sensor de potencia INA3221 a través de I2C.
     Abstrae la librería ina219 para presentar una interfaz coherente.
     """
-    def __init__(self, i2c_bus: int, address: int, shunt_ohms: float):
+    def __init__(self, i2c_bus: int, i2c_address: int, shunt_resistance_ohms: float):
         """
         Inicializa el sensor INA3221.
 
@@ -14,8 +14,8 @@ class PowerMeterINA3221:
             address (int): La dirección I2C del dispositivo.
             shunt_ohms (float): El valor de la resistencia de shunt.
         """
-        self.address = address
-        self.shunt_ohms = shunt_ohms
+        self.address = i2c_address
+        self.shunt_ohms = shunt_resistance_ohms
         self.i2c_bus = i2c_bus
         self.channels = []
 
