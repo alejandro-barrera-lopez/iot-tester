@@ -18,6 +18,10 @@ power_meter_ina3221:
   i2c_address: 0x40
   shunt_resistance_ohms: 0.1
 
+power_meter_ppk2:
+  serial_number: "" # Dejar vacío para usar el PPK2 conectado por USB
+  source_voltage_mv: 3300
+
 # --- Umbrales y parámetros del test ---
 # Límites para determinar si una prueba es PASS o FAIL.
 # Modificar estos valores no requiere cambiar el código.

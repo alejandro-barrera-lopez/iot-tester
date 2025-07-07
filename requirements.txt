@@ -2,3 +2,4 @@ pyserial
 pyhid_usb_relay
 customtkinter
 pi-ina219
+ppk2-api

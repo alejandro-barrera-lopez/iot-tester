@@ -3,6 +3,8 @@ import customtkinter as ctk
 from xmnz_tester.config import load_config
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
+from xmnz_tester.hal.ppk2 import PowerMeterPPK2
+from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.gui.main_window import MainWindow
 
 def poc_relay_controller():
@@ -42,8 +44,6 @@ def poc_rs485_controller():
     hw_cfg = config.get("hardware_ports", {})
     rs485_port = hw_cfg.get("rs485_port")
     baud_rate = hw_cfg.get("baud_rate", 115200)
-
-    from xmnz_tester.hal.rs485 import RS485Controller
 
     # Iniciar el controlador RS485
     with RS485Controller(port=rs485_port, baud_rate=baud_rate) as rs485:
@@ -92,6 +92,31 @@ def poc_ina3221():
 
     print("\n--- Prueba finalizada ---")
 
+def poc_ppk2():
+    print("--- PoC del Módulo de Potencia PPK2 ---")
+
+    # 1. Cargar configuración
+    ppk2_cfg = config.get("power_meter_ppk2", {})
+    serial_number = ppk2_cfg.get("serial_number")
+    voltage_mv = ppk2_cfg.get("source_voltage_mv", 3300)
+
+    # 2. Inicializar y conectar con el PPK2 usando 'with'
+    with PowerMeterPPK2(serial_number=serial_number) as ppk2:
+
+        # 3. Configurar el PPK2 y encender el dispositivo a probar
+        ppk2.configure_source_meter(voltage_mv)
+        ppk2.set_dut_power(True)
+
+        # 4. Realizar una medición de 5 segundos
+        # Esta única línea reemplaza todo el bucle complejo del script original.
+        average_current = ppk2.measure_average_current(duration_s=5)
+
+        print(f"\nRESULTADO FINAL: La corriente media fue de {average_current:.3f} uA.")
+
+        # 5. Apagar el dispositivo (se hace automáticamente al salir del 'with')
+
+    print("\n--- Prueba finalizada ---")
+
 def launch_gui():
     """
     Lanza la interfaz gráfica de usuario (GUI) para el tester.
@@ -112,7 +137,7 @@ if __name__ == "__main__":
         # Cargar la configuración
         config = load_config()
 
-        launch_gui()
+        # launch_gui()
 
         # Probar relés
         # poc_relay_controller()
@@ -122,6 +147,9 @@ if __name__ == "__main__":
 
         # Probar INA3221
         poc_ina3221()
+
+        # Probar PPK2
+        poc_ppk2()
 
     except Exception as e:
         print(f"\nOcurrió un error fatal: {e}")
