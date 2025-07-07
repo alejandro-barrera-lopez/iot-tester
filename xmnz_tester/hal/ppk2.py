@@ -20,28 +20,39 @@ class PowerMeterPPK2:
 
     def connect(self):
         """Encuentra y se conecta al PPK2."""
-        print(f"🔎 Buscando PPK2 (S/N: {self.serial_number or 'cualquiera'})...")
-        devices = PPK2_API.list_devices()
+        print(f"Buscando PPK2 (S/N: {self.serial_number or 'cualquiera'})...")
+        try:
+            # Esta función devuelve una lista de tuplas: [(puerto, S/N), ...]
+            devices = PPK2_API.list_devices()
+        except Exception as e:
+            print(f"Error al listar dispositivos: {e}")
+            raise
 
         if not devices:
             raise ConnectionError("No se encontró ningún PPK2 conectado.")
 
+        device_info = None
         if self.serial_number:
-            device_info = next((d for d in devices if d.serial_number == self.serial_number), None)
+            # Buscamos en la lista de tuplas. El S/N está en la posición 1.
+            device_info = next((d for d in devices if d[1] == self.serial_number), None)
             if not device_info:
                 raise ConnectionError(f"No se encontró el PPK2 con S/N {self.serial_number}.")
-            self.port = device_info.port
         else:
             if len(devices) > 1:
                 print("ADVERTENCIA: Se encontraron múltiples PPK2. Conectando al primero.")
-            self.port = devices[0].port
+            device_info = devices[0]
+
+        # El puerto está en la posición 0 de la tupla
+        self.port = device_info[0]
 
         try:
             self.ppk2_api = PPK2_API(self.port)
-            self.ppk2_api.get_modifiers() # Necesario para inicializar las mediciones
-            print(f"Conectado al PPK2 en {self.port} (S/N: {self.ppk2_api.serial_number}).")
+            # La línea get_modifiers() se llama después para asegurar que el objeto api existe
+            self.ppk2_api.get_modifiers()
+            actual_serial = self.ppk2_api.serial_number or "N/A"
+            print(f"Conectado al PPK2 en {self.port} (S/N: {actual_serial}).")
         except Exception as e:
-            print(f"Error al conectar con el PPK2: {e}")
+            print(f"Error al instanciar la API del PPK2 en el puerto {self.port}: {e}")
             raise
 
     def disconnect(self):
