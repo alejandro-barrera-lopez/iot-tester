@@ -26,8 +26,8 @@ class RelayController:
             if self.relay_device is None:
                 raise ConnectionError("No se encontró ninguna placa de relés HID.")
 
-            serial = self.relay_device.serial_number
-            print(f"Conectado al controlador de relés (S/N: {serial}).")
+            # serial = self.relay_device.serial_number
+            # print(f"Conectado al controlador de relés (S/N: {serial}).")
             self.all_off() # Asegura un estado inicial conocido y seguro
         except Exception as e:
             # La librería puede lanzar varias excepciones si hay problemas de drivers
