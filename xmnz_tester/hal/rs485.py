@@ -26,16 +26,16 @@ class RS485Controller:
         """Abre la conexión con el puerto serie."""
         try:
             self.serial_conn = serial.Serial(self.port, self.baud_rate, timeout=self.timeout)
-            print(f"✅ Conectado al dispositivo RS485 en {self.port}.")
+            print(f"Conectado al dispositivo RS485 en {self.port}.")
         except serial.SerialException as e:
-            print(f"❌ Error al conectar a RS485: {e}")
+            print(f"Error al conectar a RS485: {e}")
             raise
 
     def disconnect(self):
         """Cierra la conexión del puerto serie."""
         if self.serial_conn and self.serial_conn.is_open:
             self.serial_conn.close()
-            print("✅ Desconectado de RS485 de forma segura.")
+            print("Desconectado de RS485 de forma segura.")
 
     def send_command(self, command: str) -> str | None:
         """
