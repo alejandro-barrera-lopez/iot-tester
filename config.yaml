@@ -1,0 +1,53 @@
+# =================================================
+# FICHERO DE CONFIGURACIÓN PARA EL TESTER JIT AC
+# =================================================
+
+# --- Configuración del hardware y puertos ---
+# Define cómo el software encuentra cada dispositivo físico.
+hardware_ports:
+  # rs485_port: /dev/ttyUSB0
+  rs485_port: COM11
+  # relay_controller_port: /dev/ttyUSB1
+  relay_controller_port: COM3
+  ppk2_serial_number: "E4A0F1B2C3D4" # Usar el Nº de Serie es más robusto que el puerto
+  baud_rate: 115200
+
+# --- Configuración de sensores específicos ---
+power_meter_ina3221:
+  i2c_bus: 1
+  i2c_address: 0x40
+  shunt_resistance_ohms: 0.1
+
+# --- Umbrales y parámetros del test ---
+# Límites para determinar si una prueba es PASS o FAIL.
+# Modificar estos valores no requiere cambiar el código.
+test_thresholds:
+  # Consumo máximo en nano durante el modo de bajo consumo (sleep)
+  sleep_current_max_ua: 50.0
+  active_current_max_ma: 150.0
+  rs485_response_timeout_s: 2
+  measurement_duration_s: 5
+
+# --- Configuración del servidor y API ---
+# Datos para reportar los resultados a la plataforma central.
+api_config:
+  api_endpoint_url: "http://tu-servidor.com/api/v1/test_results"
+  api_key: "SECRET_API_KEY_GOES_HERE"
+  # Identificador único de este puesto de test
+  station_id: "PROD-JIG-01"
+
+# --- Mapeo de recursos ---
+# Asigna una función a cada número de relé para que el código sea más legible.
+resource_mapping:
+  relay_map:
+    vin_power: 3   # Relé que controla la alimentación principal de 12V
+    tamper_1: 1    # Relé para simular el tamper en IN1
+    tamper_2: 2    # Relé para simular el tamper en IN2
+    spare: 4       # Relé de repuesto, sin uso actual
+
+# --- Parámetros generales de la aplicación ---
+application:
+  # Nivel de detalle del log: DEBUG, INFO, WARNING, ERROR
+  log_level: "INFO"
+  log_file_path: "./logs/"
+  app_title: "JIT AC Controller Test"

@@ -20,7 +20,7 @@ class RelayController:
 
     def connect(self):
         """Encuentra y se conecta a la placa de relés HID."""
-        print(f"🔎 Buscando placa de relés HID (S/N: {self.serial_number or 'cualquiera'})...")
+        print(f"Buscando placa de relés HID (S/N: {self.serial_number or 'cualquiera'})...")
         try:
             self.relay_device = pyhid_usb_relay.find()
             if self.relay_device is None:

@@ -1,2 +1,4 @@
 pyserial
 pyhid_usb_relay
+customtkinter
+pi-ina219
