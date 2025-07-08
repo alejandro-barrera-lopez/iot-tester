@@ -143,20 +143,23 @@ class TestRunner:
         """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
         self._report("Paso 2: Verificando INA3221...", "INFO")
         try:
-            # Aquí iría la lógica para interactuar con el INA3221
-            # Por ejemplo, leer voltajes y corrientes
-            meter = PowerMeterINA3221()
-            meter.connect()
-            voltages = meter.read_voltages()
-            currents = meter.read_currents()
+            # Inicializar el medidor INA3221
+            meter_cfg = self.config.get("power_meter_ina3221", {})
+            self.ina3221_meter = PowerMeterINA3221(
+                i2c_bus=meter_cfg.get("i2c_bus", 1)
+                i2c_address=meter_cfg.get("i2c_address", 0x40),
+                shunt_resistance_ohms= meter_cfg.get("shunt_resistance_ohms", 0.1)
+            )
+            self.ina3221_meter.connect()
 
-            # Simulación de lectura exitosa
+            # Leer voltajes y corrientes
+            voltages = self.ina3221_meter.read_voltages()
+            currents = self.ina3221_meter.read_currents()
 
             if voltages and currents:
-                self._report(f"Voltajes leídos: {voltages} V -> PASS", "PASS")
-                self._report(f"Corrientes leídas: {currents} mA -> PASS", "PASS")
+                self._report(f"Voltajes: {voltages} V, Corrientes: {currents} A -> PASS", "PASS")
             else:
-                self._report("Fallo al leer voltajes o corrientes -> FAIL", "FAIL")
+                self._report("Fallo al leer voltajes o corrientes del INA3221 -> FAIL", "FAIL")
 
         except Exception as e:
             self._report(f"Error al verificar INA3221: {e}", "FAIL")
