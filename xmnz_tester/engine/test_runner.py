@@ -139,36 +139,36 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al verificar relés: {e}", "FAIL")
 
-def _test_step_check_ina3221(self):
-    """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
-    self._report("Paso 3: Verificando INA3221...", "INFO")
+    def _test_step_check_ina3221(self):
+        """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
+        self._report("Paso 3: Verificando INA3221...", "INFO")
 
-    try:
-        meter_cfg = self.config.get("power_meter_ina3221", {})
+        try:
+            meter_cfg = self.config.get("power_meter_ina3221", {})
 
-        with PowerMeterINA3221(**meter_cfg) as power_meter:
-            all_channels_ok = True
-            report_lines = []
+            with PowerMeterINA3221(**meter_cfg) as power_meter:
+                all_channels_ok = True
+                report_lines = []
 
-            # Iterar sobre los 3 canales del INA3221
-            for channel in range(1, 4):
-                data = power_meter.read_channel(channel)
+                # Iterar sobre los 3 canales del INA3221
+                for channel in range(1, 4):
+                    data = power_meter.read_channel(channel)
 
-                if data:
-                    voltage = data['bus_voltage_V']
-                    current = data['current_mA']
-                    report_lines.append(f"  - Canal {channel}: {voltage:.3f} V, {current:.3f} mA")
-                else:
-                    self._report(f"Fallo al leer el canal {channel} del INA3221 -> FAIL", "FAIL")
-                    all_channels_ok = False
-                    break
+                    if data:
+                        voltage = data['bus_voltage_V']
+                        current = data['current_mA']
+                        report_lines.append(f"  - Canal {channel}: {voltage:.3f} V, {current:.3f} mA")
+                    else:
+                        self._report(f"Fallo al leer el canal {channel} del INA3221 -> FAIL", "FAIL")
+                        all_channels_ok = False
+                        break
 
-            if all_channels_ok:
-                full_report = "Lecturas del INA3221 correctas:\n" + "\n".join(report_lines)
-                self._report(f"{full_report}\n -> PASS", "PASS")
+                if all_channels_ok:
+                    full_report = "Lecturas del INA3221 correctas:\n" + "\n".join(report_lines)
+                    self._report(f"{full_report}\n -> PASS", "PASS")
 
-    except Exception as e:
-        self._report(f"Error al inicializar o comunicar con el INA3221: {e}", "FAIL")
+        except Exception as e:
+            self._report(f"Error al inicializar o comunicar con el INA3221: {e}", "FAIL")
 
     def _test_step_check_serial(self):
         """Ejemplo de paso: Lee el número de serie y verifica que no esté vacío."""
