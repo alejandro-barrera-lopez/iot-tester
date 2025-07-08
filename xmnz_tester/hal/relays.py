@@ -65,6 +65,24 @@ class RelayController:
             for i in range(1, self.num_relays + 1):
                 self.relay_device.set_state(i, False)
 
+    def get_relay_state(self, relay_num: int) -> bool:
+        """
+        Obtiene el estado actual de un relé específico.
+
+        Args:
+            relay_num (int): El número del relé a consultar (empezando en 1).
+
+        Returns:
+            bool: True si el relé está encendido, False si está apagado.
+        """
+        if not 1 <= relay_num <= self.num_relays:
+            raise ValueError(f"Número de relé inválido: {relay_num}. Debe estar entre 1 y {self.num_relays}.")
+
+        if self.relay_device is None:
+            raise ConnectionError("No conectado. Llama a 'connect()' primero.")
+
+        return self.relay_device.get_state(relay_num)
+
     def __enter__(self):
         self.connect()
         return self
