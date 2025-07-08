@@ -1,7 +1,7 @@
 import customtkinter as ctk
 import threading
-# Aún no lo hemos creado, pero lo importaremos más adelante
-# from iot_tester.engine.test_runner import TestRunner
+from xmnz_tester.engine.test_runner import TestRunner
+from xmnz_tester.config import load_config
 
 # Define una paleta de colores para los estados
 STATUS_COLORS = {
@@ -29,6 +29,9 @@ class MainWindow:
         self._create_status_frame()
         self._create_log_frame()
         self._create_action_frame()
+
+        # --- Cargar configuración ---
+        self.config = load_config()
 
     def _create_status_frame(self):
         """Crea el marco superior con el estado general y el número de serie."""
@@ -68,38 +71,89 @@ class MainWindow:
         self.status_var.set(status.upper())
         self.status_label.configure(fg_color=color)
 
+    def update_gui_callback(self, message: str, status: str):
+        """
+        Esta es la función que el TestRunner llamará desde otro hilo.
+        Usa `root.after` para asegurar que las actualizaciones de la GUI
+        se ejecuten de forma segura en el hilo principal.
+        """
+        def update_task():
+            if status == "PASS" or status == "FAIL" or status == "INFO" or status == "HEADER":
+                self.log_message(message)
+
+            # Puedes añadir lógica más compleja aquí, como cambiar colores
+            # self.set_status(...)
+
+        self.root.after(0, update_task)
+
     def start_test_thread(self):
         """Inicia la lógica del test en un hilo separado para no bloquear la GUI."""
+        # Limpiar log anterior
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("1.0", "end")
+        self.log_textbox.configure(state="disabled")
+
         self.log_message("Iniciando secuencia de test...")
         self.set_status("PROBANDO", STATUS_COLORS["testing"])
         self.start_button.configure(state="disabled", text="PROBANDO...")
 
-        # Aquí es donde se crearía y lanzaría el hilo
-        # El 'target' sería el método principal de tu TestRunner
-        # test_runner = TestRunner(callback=self.update_from_thread)
-        # thread = threading.Thread(target=test_runner.run_full_test)
-        # thread.start()
+        # Crear una instancia del TestRunner, pasándole el config y el callback
+        runner = TestRunner(config=self.config, gui_callback=self.update_gui_callback)
 
-        # --- Simulación para la PoC de la GUI ---
-        # Borra estas líneas cuando integres el TestRunner real
-        def fake_test_simulation():
-            import time
-            self.root.after(1000, lambda: self.log_message("Conectando a hardware... OK"))
-            self.root.after(2000, lambda: self.log_message("Prueba de Vin... PASS"))
-            self.root.after(3000, lambda: self.log_message("Midiendo consumo... 4.5uA -> PASS"))
-            self.root.after(4000, self.on_test_complete) # Llama a la función de finalización
+        # Ejecutar el test en un hilo
+        test_thread = threading.Thread(
+            target=self.run_and_finalize, # Llama a un wrapper para gestionar el final
+            args=(runner,),
+            daemon=True
+        )
+        test_thread.start()
 
-        threading.Thread(target=fake_test_simulation, daemon=True).start()
+    def run_and_finalize(self, runner: TestRunner):
+        """Wrapper que ejecuta el test y actualiza la GUI al final."""
+        final_result = runner.run_full_test()
+
+        # Al final, actualizamos el estado principal de forma segura
+        def final_update():
+            if final_result == "PASS":
+                self.set_status("PASS", STATUS_COLORS["pass"])
+            else:
+                self.set_status("FAIL", STATUS_COLORS["fail"])
+            self.start_button.configure(state="normal", text="INICIAR NUEVO TEST")
+
+        self.root.after(0, final_update)
+
+    # def start_test_thread(self):
+    #     """Inicia la lógica del test en un hilo separado para no bloquear la GUI."""
+    #     self.log_message("Iniciando secuencia de test...")
+    #     self.set_status("PROBANDO", STATUS_COLORS["testing"])
+    #     self.start_button.configure(state="disabled", text="PROBANDO...")
+
+    #     # Aquí es donde se crearía y lanzaría el hilo
+    #     # El 'target' sería el método principal de tu TestRunner
+    #     # test_runner = TestRunner(callback=self.update_from_thread)
+    #     # thread = threading.Thread(target=test_runner.run_full_test)
+    #     # thread.start()
+
+    #     # --- Simulación para la PoC de la GUI ---
+    #     # Borra estas líneas cuando integres el TestRunner real
+    #     def fake_test_simulation():
+    #         import time
+    #         self.root.after(1000, lambda: self.log_message("Conectando a hardware... OK"))
+    #         self.root.after(2000, lambda: self.log_message("Prueba de Vin... PASS"))
+    #         self.root.after(3000, lambda: self.log_message("Midiendo consumo... 4.5uA -> PASS"))
+    #         self.root.after(4000, self.on_test_complete) # Llama a la función de finalización
+
+    #     threading.Thread(target=fake_test_simulation, daemon=True).start()
 
 
-    def on_test_complete(self):
-        """Se llama cuando el test ha finalizado para actualizar la GUI."""
-        # Aquí determinarías si el resultado final es PASS o FAIL
-        final_result = "PASS" # Esto vendría del TestRunner
+    # def on_test_complete(self):
+    #     """Se llama cuando el test ha finalizado para actualizar la GUI."""
+    #     # Aquí determinarías si el resultado final es PASS o FAIL
+    #     final_result = "PASS" # Esto vendría del TestRunner
 
-        if final_result == "PASS":
-            self.set_status("PASS", STATUS_COLORS["pass"])
-        else:
-            self.set_status("FAIL", STATUS_COLORS["fail"])
+    #     if final_result == "PASS":
+    #         self.set_status("PASS", STATUS_COLORS["pass"])
+    #     else:
+    #         self.set_status("FAIL", STATUS_COLORS["fail"])
 
-        self.start_button.configure(state="normal", text="INICIAR NUEVO TEST")
+    #     self.start_button.configure(state="normal", text="INICIAR NUEVO TEST")
