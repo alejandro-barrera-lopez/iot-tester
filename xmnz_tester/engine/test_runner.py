@@ -2,7 +2,7 @@ import time
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
-# from iot_tester.hal.ina3221 import PowerMeterINA3221
+from xmnz_tester.hal.ina3221 import PowerMeterINA3221
 
 class TestRunner:
     """
@@ -59,7 +59,7 @@ class TestRunner:
 
     def _connect_all_hardware(self):
         """Inicializa y conecta todos los controladores del HAL."""
-        self._report("--- Conectando al Hardware ---", "HEADER")
+        self._report("--- Conectando al hardware ---", "HEADER")
 
         # Conectar Relés
         relay_cfg = self.config.get("hardware_ports", {})
@@ -84,7 +84,7 @@ class TestRunner:
 
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
-        self._report("--- Desconectando del Hardware ---", "HEADER")
+        self._report("--- Desconectando del hardware ---", "HEADER")
         if self.relay_controller:
             self.relay_controller.disconnect()
         if self.rs485_controller:
@@ -94,14 +94,72 @@ class TestRunner:
 
     def _run_test_steps(self):
         """Define y ejecuta la secuencia de pruebas una por una."""
-        self._report("--- Iniciando Secuencia de Pruebas ---", "HEADER")
+        self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
         # Cada paso es una función separada
-        self._test_step_check_serial()
+        # self._test_step_check_serial()
+        self._test_step_check_relays()
         self._test_step_measure_current()
-        # Aquí añadirías el resto de los pasos...
+        self._test_step_check_ima3221()
         # self._test_step_check_vin()
         # self._test_step_check_tampers()
+
+    def _test_step_check_relays(self):
+        """Ejemplo de paso: Verifica que los relés se pueden activar y desactivar."""
+        self._report("Paso 1: Verificando relés...", "INFO")
+        try:
+            # Activar el primer relé
+            self.relay_controller.set_relay(1, True)
+            time.sleep(1)  # Esperar un segundo para estabilizar
+
+            # Comprobar estado del relé
+            if self.relay_controller.get_relay_state(1):
+                self._report("Relé 1 activado correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al activar el Relé 1 -> FAIL", "FAIL")
+
+            # Activar el segundo relé
+            self.relay_controller.set_relay(2, True)
+            time.sleep(1)
+
+            if self.relay_controller.get_relay_state(2):
+                self._report("Relé 2 activado correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al activar el Relé 2 -> FAIL", "FAIL")
+
+            # Desactivar los relñes
+            self.relay_controller.all_off()
+            time.sleep(1)  # Esperar un segundo para estabilizar
+
+            if not self.relay_controller.get_relay_state(1):
+                self._report("Relé 1 desactivado correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al desactivar el Relé 1 -> FAIL", "FAIL")
+
+        except Exception as e:
+            self._report(f"Error al verificar relés: {e}", "FAIL")
+
+    def _test_step_check_ima3221(self):
+        """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
+        self._report("Paso 2: Verificando INA3221...", "INFO")
+        try:
+            # Aquí iría la lógica para interactuar con el INA3221
+            # Por ejemplo, leer voltajes y corrientes
+            meter = PowerMeterINA3221()
+            meter.connect()
+            voltages = meter.read_voltages()
+            currents = meter.read_currents()
+
+            # Simulación de lectura exitosa
+
+            if voltages and currents:
+                self._report(f"Voltajes leídos: {voltages} V -> PASS", "PASS")
+                self._report(f"Corrientes leídas: {currents} mA -> PASS", "PASS")
+            else:
+                self._report("Fallo al leer voltajes o corrientes -> FAIL", "FAIL")
+
+        except Exception as e:
+            self._report(f"Error al verificar INA3221: {e}", "FAIL")
 
     def _test_step_check_serial(self):
         """Ejemplo de paso: Lee el número de serie y verifica que no esté vacío."""
