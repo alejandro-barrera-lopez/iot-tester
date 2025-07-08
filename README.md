@@ -38,7 +38,7 @@ graph TD
         C --> C1[RS485 manager];
         C --> C2[Relay manager];
         C --> C3[PPK2 manager];
-        C --> C4[IMA3221 manager];
+        C --> C4[INA3221 manager];
         C --> C5[¿Barcode scanner manager?];
         B --> D{Logging/send module};
         D --> D1[Local log -> .csv/.log];
@@ -49,7 +49,7 @@ graph TD
         C1 --> E[USB/RS485];
         C2 --> F[USB/RELAYS];
         C3 --> G[PPK2];
-        C4 --> H[IMA3221];
+        C4 --> H[INA3221];
         C5 --> I[¿Barcode scanner?];
     end
 
