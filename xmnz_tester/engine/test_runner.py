@@ -179,40 +179,40 @@ class TestRunner:
         else:
             self._report("Fallo al leer S/N o respuesta inválida.", "FAIL")
 
-def _test_step_measure_current(self):
-    """Ejemplo: Mide el consumo en reposo y lo compara con un umbral."""
-    self._report("Paso 2: Midiendo consumo en reposo...", "INFO")
+    def _test_step_measure_current(self):
+        """Ejemplo: Mide el consumo en reposo y lo compara con un umbral."""
+        self._report("Paso 2: Midiendo consumo en reposo...", "INFO")
 
-    try:
-        # 1. Cargar toda la configuración necesaria al principio
-        ppk2_cfg = self.config.get("power_meter_ppk2", {})
-        serial_number = ppk2_cfg.get("serial_number")
-        voltage_mv = ppk2_cfg.get("source_voltage_mv", 3300)
-        threshold_ua = self.config.get("test_thresholds", {}).get("sleep_current_max_ua", 50.0)
+        try:
+            # 1. Cargar toda la configuración necesaria al principio
+            ppk2_cfg = self.config.get("power_meter_ppk2", {})
+            serial_number = ppk2_cfg.get("serial_number")
+            voltage_mv = ppk2_cfg.get("source_voltage_mv", 3300)
+            threshold_ua = self.config.get("test_thresholds", {}).get("sleep_current_max_ua", 50.0)
 
-        with PowerMeterPPK2(serial_number=serial_number) as ppk2_meter:
-            # 2a. Configurar el PPK2 y encender el dispositivo
-            ppk2_meter.configure_source_meter(voltage_mv)
-            ppk2_meter.set_dut_power(True)
-            self._report(f"PPK2 configurado a {voltage_mv}mV y alimentación ON.", "INFO")
+            with PowerMeterPPK2(serial_number=serial_number) as ppk2_meter:
+                # 2a. Configurar el PPK2 y encender el dispositivo
+                ppk2_meter.configure_source_meter(voltage_mv)
+                ppk2_meter.set_dut_power(True)
+                self._report(f"PPK2 configurado a {voltage_mv}mV y alimentación ON.", "INFO")
 
-            # 3. Pedir al dispositivo que entre en modo de bajo consumo
-            self.rs485_controller.send_command("SLEEP")
-            time.sleep(2)  # Aumentado a 2s para asegurar la estabilización
+                # 3. Pedir al dispositivo que entre en modo de bajo consumo
+                self.rs485_controller.send_command("SLEEP")
+                time.sleep(2)  # Aumentado a 2s para asegurar la estabilización
 
-            # 4. Medir la corriente
-            # El método ya devuelve la media en uA, como se ve en el PoC.
-            avg_current = ppk2_meter.measure_average_current(duration_s=3)
+                # 4. Medir la corriente
+                # El método ya devuelve la media en uA, como se ve en el PoC.
+                avg_current = ppk2_meter.measure_average_current(duration_s=3)
 
-            # 5. Verificar que la medición fue exitosa antes de comparar
-            if avg_current is not None:
-                # 6. Comparar y reportar el resultado
-                if avg_current < threshold_ua:
-                    self._report(f"Consumo: {avg_current:.3f} uA (Límite: < {threshold_ua} uA) -> PASS", "PASS")
+                # 5. Verificar que la medición fue exitosa antes de comparar
+                if avg_current is not None:
+                    # 6. Comparar y reportar el resultado
+                    if avg_current < threshold_ua:
+                        self._report(f"Consumo: {avg_current:.3f} uA (Límite: < {threshold_ua} uA) -> PASS", "PASS")
+                    else:
+                        self._report(f"Consumo: {avg_current:.3f} uA (Límite: < {threshold_ua} uA) -> FAIL", "FAIL")
                 else:
-                    self._report(f"Consumo: {avg_current:.3f} uA (Límite: < {threshold_ua} uA) -> FAIL", "FAIL")
-            else:
-                self._report("No se pudo obtener una medición de corriente del PPK2 -> FAIL", "FAIL")
+                    self._report("No se pudo obtener una medición de corriente del PPK2 -> FAIL", "FAIL")
 
-    except Exception as e:
-        self._report(f"Error durante la medición con PPK2: {e}", "FAIL")
+        except Exception as e:
+            self._report(f"Error durante la medición con PPK2: {e}", "FAIL")
