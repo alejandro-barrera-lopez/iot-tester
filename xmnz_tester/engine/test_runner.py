@@ -1,4 +1,5 @@
 import time
+import statistics
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
@@ -100,7 +101,8 @@ class TestRunner:
         # self._test_step_check_serial()
         self._test_step_check_relays()
         self._test_step_measure_current()
-        self._test_step_check_ina3221()
+        # self._test_step_check_ina3221()
+        self._test_step_check_ina3221_averaged()
         # self._test_step_check_vin()
         # self._test_step_check_tampers()
 
@@ -169,6 +171,70 @@ class TestRunner:
 
         except Exception as e:
             self._report(f"Error al inicializar o comunicar con el INA3221: {e}", "FAIL")
+
+    def _test_step_check_ina3221_averaged(self):
+        """Verifica el INA3221 tomando una media de mediciones durante un tiempo determinado."""
+        self._report("Paso 3: Verificando INA3221 (promedio de 2 segundos)...", "INFO")
+
+        duration_s = 2.0  # Duración del muestreo
+
+        try:
+            meter_cfg = self.config.get("power_meter_ina3221", {})
+
+            with PowerMeterINA3221(**meter_cfg) as power_meter:
+                # 1. Estructura para almacenar todas las lecturas de cada canal
+                # Ejemplo: {1: {'voltages': [v1, v2, ...], 'currents': [c1, c2, ...]}, 2: {...}}
+                readings = {ch: {'voltages': [], 'currents': []} for ch in range(1, 4)}
+
+                start_time = time.monotonic()
+                sample_count = 0
+
+                # 2. Bucle de muestreo durante el tiempo especificado
+                while time.monotonic() - start_time < duration_s:
+                    for channel in range(1, 4):
+                        data = power_meter.read_channel(channel)
+                        if data:
+                            readings[channel]['voltages'].append(data['bus_voltage_V'])
+                            readings[channel]['currents'].append(data['current_mA'])
+                        else:
+                            self._report(f"Fallo al leer el canal {channel} durante el muestreo -> FAIL", "FAIL")
+                            return
+
+                    sample_count += 1
+                    time.sleep(0.1) # Pequeña pausa para no saturar el bus I2C
+
+                # 3. Calcular y reportar los promedios
+                if sample_count == 0:
+                    self._report("No se tomaron muestras del INA3221 en 2 segundos -> FAIL", "FAIL")
+                    return
+
+                report_lines = []
+                all_channels_ok = True
+
+                for channel in range(1, 4):
+                    voltage_samples = readings[channel]['voltages']
+                    current_samples = readings[channel]['currents']
+
+                    if not voltage_samples or not current_samples:
+                        report_lines.append(f"  - Canal {channel}: No se obtuvieron datos.")
+                        all_channels_ok = False
+                        continue
+
+                    avg_voltage = statistics.mean(voltage_samples)
+                    avg_current = statistics.mean(current_samples)
+
+                    report_lines.append(f"  - Canal {channel}: {avg_voltage:.3f} V, {avg_current:.3f} mA (promedio de {len(voltage_samples)} muestras)")
+
+                # 4. Reporte final
+                if all_channels_ok:
+                    full_report = "Lecturas promedio del INA3221 correctas:\n" + "\n".join(report_lines)
+                    self._report(f"{full_report}\n -> PASS", "PASS")
+                else:
+                    full_report = "Fallo al procesar lecturas del INA3221:\n" + "\n".join(report_lines)
+                    self._report(f"{full_report}\n -> FAIL", "FAIL")
+
+        except Exception as e:
+            self._report(f"Error al verificar INA3221: {e}", "FAIL")
 
     def _test_step_check_serial(self):
         """Ejemplo de paso: Lee el número de serie y verifica que no esté vacío."""
