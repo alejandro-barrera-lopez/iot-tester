@@ -107,6 +107,8 @@ class ConfigManager:
     @property
     def app_title(self) -> str: return self.station.get("app_title", "JIT Tester")
     @property
+    def app_resolution(self) -> str: return self.station.get("app_resolution", "800x600")
+    @property
     def station_id(self) -> str: return self.station.get("id", "UNKNOWN_STATION")
     @property
     def api_endpoint(self) -> str: return self.api_config.get("endpoint_url")

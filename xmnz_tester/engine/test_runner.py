@@ -59,7 +59,7 @@ class TestRunner:
             self._report(f"ERROR CRÍTICO: {e}", "FAIL")
 
         finally:
-            # --- 3. Desconexión del Hardware ---
+            # --- 3. Desconexión del hardware ---
             self._disconnect_all_hardware()
             self._report(f"Test finalizado. Resultado general: {self.overall_status}", self.overall_status)
             return self.overall_status

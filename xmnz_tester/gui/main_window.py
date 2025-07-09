@@ -13,9 +13,11 @@ STATUS_COLORS = {
 
 class MainWindow:
     def __init__(self, root: ctk.CTk):
+        self.config = ConfigManager()
+
         self.root = root
-        self.root.title("XMNZ Test")
-        self.root.geometry("700x500")
+        self.root.title(self.config.app_title)
+        self.root.geometry(self.config.app_resolution)
 
         # --- Variables de estado ---
         self.serial_number_var = ctk.StringVar(value="---")
@@ -30,8 +32,6 @@ class MainWindow:
         self._create_log_frame()
         self._create_action_frame()
 
-        # --- Cargar configuración ---
-        self.config = ConfigManager()
 
     def _create_status_frame(self):
         """Crea el marco superior con el estado general y el número de serie."""
@@ -39,7 +39,7 @@ class MainWindow:
         frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
         frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(frame, text="Número de Serie:", font=("", 14, "bold")).grid(row=0, column=0, padx=10, pady=5)
+        ctk.CTkLabel(frame, text="Número de serie:", font=("", 14, "bold")).grid(row=0, column=0, padx=10, pady=5)
         ctk.CTkLabel(frame, textvariable=self.serial_number_var, font=("", 14)).grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
         self.status_label = ctk.CTkLabel(frame, textvariable=self.status_var, font=("", 20, "bold"), fg_color=STATUS_COLORS["default"])
@@ -121,39 +121,3 @@ class MainWindow:
             self.start_button.configure(state="normal", text="INICIAR NUEVO TEST")
 
         self.root.after(0, final_update)
-
-    # def start_test_thread(self):
-    #     """Inicia la lógica del test en un hilo separado para no bloquear la GUI."""
-    #     self.log_message("Iniciando secuencia de test...")
-    #     self.set_status("PROBANDO", STATUS_COLORS["testing"])
-    #     self.start_button.configure(state="disabled", text="PROBANDO...")
-
-    #     # Aquí es donde se crearía y lanzaría el hilo
-    #     # El 'target' sería el método principal de tu TestRunner
-    #     # test_runner = TestRunner(callback=self.update_from_thread)
-    #     # thread = threading.Thread(target=test_runner.run_full_test)
-    #     # thread.start()
-
-    #     # --- Simulación para la PoC de la GUI ---
-    #     # Borra estas líneas cuando integres el TestRunner real
-    #     def fake_test_simulation():
-    #         import time
-    #         self.root.after(1000, lambda: self.log_message("Conectando a hardware... OK"))
-    #         self.root.after(2000, lambda: self.log_message("Prueba de Vin... PASS"))
-    #         self.root.after(3000, lambda: self.log_message("Midiendo consumo... 4.5uA -> PASS"))
-    #         self.root.after(4000, self.on_test_complete) # Llama a la función de finalización
-
-    #     threading.Thread(target=fake_test_simulation, daemon=True).start()
-
-
-    # def on_test_complete(self):
-    #     """Se llama cuando el test ha finalizado para actualizar la GUI."""
-    #     # Aquí determinarías si el resultado final es PASS o FAIL
-    #     final_result = "PASS" # Esto vendría del TestRunner
-
-    #     if final_result == "PASS":
-    #         self.set_status("PASS", STATUS_COLORS["pass"])
-    #     else:
-    #         self.set_status("FAIL", STATUS_COLORS["fail"])
-
-    #     self.start_button.configure(state="normal", text="INICIAR NUEVO TEST")
