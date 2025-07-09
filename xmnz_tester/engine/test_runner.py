@@ -1,10 +1,11 @@
 import time
 import statistics
+from xmnz_tester.config import ConfigManager
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
-from xmnz_tester.config import ConfigManager
+from xmnz_tester.dut_commands import DutCommands
 
 class TestRunner:
     """
@@ -113,22 +114,22 @@ class TestRunner:
         self._test_step_enable_vin()
 
         # 3- By rs485, check status, get imei, icc, i2c sensors...
-        # self._test_step_check_board_autotest()
+        self._test_step_get_board_info()
 
         # 4- Measure INA3221 both channels
-        # self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
+        self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
 
         # 5- Test tampering inputs
         # self._test_step_check_tampers()
 
-        # 6- Test board relay (REL1 ON, ...)
+        # 6- Test board relay (with REL1 off and reading tamper in1)
         # self._test_step_check_board_relay()
 
         # 7- Disconnect the battery (REL4 OFF)
         # self._test_step_disable_battery()
 
         # 8- Enable 3v7 with uA
-        # self._test_step_enable_3v7()
+        self._test_step_enable_3v7()
 
         # 9- Disconnect Vin (REL3 OFF)
         # self._test_step_disable_vin()
@@ -177,7 +178,7 @@ class TestRunner:
         self._report(final_message, "INFO")
 
     def _test_step_enable_battery(self):
-        """ Connect the battery (REL4 ON) to power the DUT. """
+        """Step 1: Connect the battery (REL4 ON) to power the DUT. """
         self._start_step("step_connect_battery")
         relay_id = self.config.relay_num_battery
 
@@ -192,7 +193,7 @@ class TestRunner:
             self._report(f"Error al conectar la batería: {e}", "FAIL")
 
     def _test_step_enable_vin(self):
-        """ Power the device from Vin (REL3 ON). """
+        """Step 2: Power the device from Vin (REL3 ON). """
         self._start_step("step_connect_battery")
         relay_id = self.config.relay_num_vin_power
 
@@ -206,6 +207,69 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al activar Vin: {e}", "FAIL")
 
+    def _test_step_get_board_info(self):
+        """Step 3: Checks DUT initial status."""
+        self._start_step("step_check_initial_status")
+
+        response = self.rs485_controller.get_board_info()
+
+        if response and len(response) > 5:
+            serial = response.get("serial", "Desconocido")
+            imei = response.get("imei", "Desconocido")
+            iccid = response.get("iccid", "Desconocido")
+            status = response.get("status", "Desconocido")
+
+            self._report(f"Comunicación OK. S/N: {serial}, IMEI: {imei}, ICCID: {iccid}, Estado: {status}", "PASS")
+        else:
+            self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL")
+
+    def _test_step_measure_ina3221(self):
+        """Step 4: Measure INA3221 channels and report results."""
+        self._start_step("step_measure_ina3221")
+
+        try:
+            meter_cfg = self.config.ina3221_config
+
+            with PowerMeterINA3221(**meter_cfg) as power_meter:
+                # Medir cada canal y reportar
+                for channel in range(1, 4):
+                    data = power_meter.read_channel(channel)
+                    if data:
+                        voltage = data['bus_voltage_V']
+                        current = data['current_mA']
+                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS")
+                    else:
+                        self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL")
+
+        except Exception as e:
+            self._report(f"Error al medir INA3221: {e}", "FAIL")
+
+
+
+    def _test_step_enable_3v7(self):
+        """Step 8: Enable 3v7 with uA meter."""
+        self._start_step("step_enable_3v7")
+
+        try:
+            # Cargar toda la configuración necesaria al principio
+            serial_number = self.config.ppk2_serial_number
+            voltage_mv = self.config.ppk2_source_voltage_mv
+
+            with PowerMeterPPK2(serial_number=serial_number) as ppk2_meter:
+                # Configurar el PPK2 y encender el dispositivo
+                ppk2_meter.configure_source_meter(voltage_mv)
+                ppk2_meter.set_dut_power(True)
+                self._report(f"PPK2 configurado a {voltage_mv}mV y alimentación ON.", "INFO")
+
+                self._report("3v7 activado correctamente -> PASS", "PASS")
+
+        except Exception as e:
+            self._report(f"Error al activar 3v7: {e}", "FAIL")
+
+
+
+
+    # FUNCIONES DE PRUEBA
     def _test_step_check_relays(self):
         """Ejemplo de paso: Verifica que los relés se pueden activar y desactivar."""
         self._report("Paso 1: Verificando relés...", "INFO")

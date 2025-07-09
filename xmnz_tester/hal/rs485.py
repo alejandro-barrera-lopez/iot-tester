@@ -72,6 +72,21 @@ class RS485Controller:
         print(f"RX <-- {response_str}")
         return response_str
 
+    def get_board_info(self) -> dict:
+        """
+        Obtiene información básica del dispositivo conectado.
+
+        Returns:
+            dict: Un diccionario con la información del dispositivo.
+        """
+        info = {
+            "serial": self.send_command("GETSERIAL"),
+            "imei": self.send_command("GETIMEI"),
+            "iccid": self.send_command("GETICCID"),
+            "status": self.send_command("GETSTATUS")
+        }
+        return info
+
     def __enter__(self):
         self.connect()
         return self
