@@ -27,6 +27,7 @@ class TestRunner:
         self.relay_controller = None
         self.rs485_controller = None
         self.ppk2_meter = None
+        self.ina3321_meter = None
 
     def _report(self, message: str, status: str = "INFO"):
         """Método centralizado para enviar mensajes a la GUI."""
@@ -62,7 +63,7 @@ class TestRunner:
         """Inicializa y conecta todos los controladores del HAL."""
         self._report("--- Conectando al hardware ---", "HEADER")
 
-        # Conectar Relés
+        # Conectar relés
         relay_cfg = self.config.get("hardware_ports", {})
         self.relay_controller = RelayController(
             num_relays=len(self.config.get("resource_mapping", {}).get("relay_map", {})),
@@ -83,6 +84,11 @@ class TestRunner:
         self.ppk2_meter = PowerMeterPPK2(serial_number=ppk2_cfg.get("serial_number"))
         self.ppk2_meter.connect()
 
+        # Conectar INA3221
+        ina_cfg = self.config.get("power_meter_ina3221", {})
+        self.ina3221_meter = PowerMeterINA3221(**ina_cfg)
+        self.ina3221_meter.connect()
+
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
         self._report("--- Desconectando del hardware ---", "HEADER")
@@ -92,19 +98,71 @@ class TestRunner:
             self.rs485_controller.disconnect()
         if self.ppk2_meter:
             self.ppk2_meter.disconnect()
+        if self.ina3221_meter:
+            self.ina3221_meter.disconnect()
 
     def _run_test_steps(self):
         """Define y ejecuta la secuencia de pruebas una por una."""
         self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
+        # Test procedure:
+        # 1- Connect the battery (REL4 ON). DUT start autotesting
+        # self._test_step_enable_battery()
+
+        # 2- Power the device from Vin (REL3 ON)
+        # self._test_step_enable_vin()
+
+        # 3- By rs485, check status, get imei, icc, i2c sensors...
+        # self._test_step_check_board_autotest()
+
+        # 4- Measure INA3221 both channels
+        # self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
+
+        # 5- Test tampering inputs
+        # self._test_step_check_tampers()
+
+        # 6- Test board relay (REL1 ON, ...)
+        # self._test_step_check_board_relay()
+
+        # 7- Disconnect the battery (REL4 OFF)
+        # self._test_step_disable_battery()
+
+        # 8- Enable 3v7 with uA
+        # self._test_step_enable_3v7()
+
+        # 9- Disconnect Vin (REL3 OFF)
+        # self._test_step_disable_vin()
+
+        # 10- GetStatus
+        # self._test_step_get_status()
+
+        # 11- Send the board to LowPower
+        # self._test_step_send_low_power()
+
+        # 12- Measure low current with uA
+        # self._test_step_measure_low_current()
+
+        # 13- Wait to normal mode
+        # self._test_step_wait_normal_mode()
+
+        # 14- Send uA current value to DUT
+        # self._test_step_send_uA_current()
+
+        # 15- Get barcode and serial number
+        # self._test_step_get_barcode_and_serial()
+
+        # 16- Force sending modem json
+        # self._test_step_force_send_modem_json()
+
+        # 17- Finish testing
+
+
         # Cada paso es una función separada
         # self._test_step_check_serial()
         self._test_step_check_relays()
-        self._test_step_measure_current()
+        # self._test_step_measure_current()
         # self._test_step_check_ina3221()
-        self._test_step_check_ina3221_averaged()
-        # self._test_step_check_vin()
-        # self._test_step_check_tampers()
+        # self._test_step_check_ina3221_averaged()
 
     def _test_step_check_relays(self):
         """Ejemplo de paso: Verifica que los relés se pueden activar y desactivar."""

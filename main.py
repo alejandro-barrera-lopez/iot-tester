@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # Cargar la configuración
         config = load_config()
 
-        launch_gui()
+        # launch_gui()
 
         # Probar relés
         # poc_relay_controller()
@@ -149,7 +149,7 @@ if __name__ == "__main__":
         # poc_ina3221()
 
         # Probar PPK2
-        # poc_ppk2()
+        poc_ppk2()
 
     except Exception as e:
         print(f"\nOcurrió un error fatal: {e}")

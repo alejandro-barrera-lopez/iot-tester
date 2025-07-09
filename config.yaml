@@ -1,57 +1,119 @@
 # =================================================
 # FICHERO DE CONFIGURACIÓN PARA EL TESTER JIT AC
+# v1.1
 # =================================================
 
-# --- Configuración del hardware y puertos ---
-# Define cómo el software encuentra cada dispositivo físico.
-hardware_ports:
-  # rs485_port: /dev/ttyUSB0
-  rs485_port: COM11
-  # relay_controller_port: /dev/ttyUSB1
-  relay_controller_port: COM3
-  ppk2_serial_number: "E4A0F1B2C3D4" # Usar el Nº de Serie es más robusto que el puerto
-  baud_rate: 115200
+station:
+  id: "PROD-JIG-01"
+  app_title: "ICI JIT Tester"
 
-# --- Configuración de sensores específicos ---
-power_meter_ina3221:
-  i2c_bus: 1
-  i2c_address: 0x40
-  shunt_resistance_ohms: 0.1
+# --------------------------------------------------------------------
+# A - Configuración del Hardware
+# Define cómo el software se comunica con cada dispositivo físico.
+# --------------------------------------------------------------------
+hardware:
+  rs485:
+    port: COM11 # o /dev/ttyUSB0 en Linux
+    baud_rate: 115200
 
-power_meter_ppk2:
-  serial_number: "" # Dejar vacío para usar el PPK2 conectado por USB
-  source_voltage_mv: 3300
+  relay_controller:
+    # El tipo de driver a usar (en este caso, el de HID)
+    type: "hid"
+    # Opcional, pero recomendado. El S/N de tu placa de relés.
+    serial_number: ""
 
-# --- Umbrales y parámetros del test ---
-# Límites para determinar si una prueba es PASS o FAIL.
-# Modificar estos valores no requiere cambiar el código.
-test_thresholds:
-  # Consumo máximo en nano durante el modo de bajo consumo (sleep)
-  sleep_current_max_ua: 50.0
-  active_current_max_ma: 150.0
-  rs485_response_timeout_s: 2
-  measurement_duration_s: 5
+  power_meters:
+    # Medidor de alta precisión para bajo consumo (uA)
+    ua_meter_ppk2:
+      type: "ppk2"
+      # Opcional. Dejar vacío para conectar al primero que encuentre.
+      serial_number: ""
+      # Voltaje a suministrar al DUT cuando se alimenta desde el PPK2
+      source_voltage_mv: 3700
 
-# --- Configuración del servidor y API ---
-# Datos para reportar los resultados a la plataforma central.
-api_config:
-  api_endpoint_url: "http://tu-servidor.com/api/v1/test_results"
-  api_key: "SECRET_API_KEY_GOES_HERE"
-  # Identificador único de este puesto de test
-  station_id: "PROD-JIG-01"
+    # Medidor multicanal para consumos en activo (mA)
+    active_meter_ina3221:
+      type: "ina3221"
+      i2c_bus: 1
+      i2c_address: 0x40
+      shunt_resistance_ohms: 0.1
 
-# --- Mapeo de recursos ---
-# Asigna una función a cada número de relé para que el código sea más legible.
+# --------------------------------------------------------------------
+# B - Mapeo de Recursos
+# Asigna nombres lógicos a recursos físicos como los relés.
+# --------------------------------------------------------------------
 resource_mapping:
+  # El nombre de la clave se usará en el código, el valor es el número de relé.
   relay_map:
-    vin_power: 3   # Relé que controla la alimentación principal de 12V
-    tamper_1: 1    # Relé para simular el tamper en IN1
-    tamper_2: 2    # Relé para simular el tamper en IN2
-    spare: 4       # Relé de repuesto, sin uso actual
+    connect_tamper_1: 1   # Conecta GND a TAMP1 para simular tamper
+    connect_tamper_2: 2   # Conecta GND a TAMP2 para simular tamper
+    apply_vin_power: 3    # Conecta 12V a VIN para alimentar desde fuente externa
+    connect_battery: 4    # Conecta la batería a la entrada de batería del DUT
 
-# --- Parámetros generales de la aplicación ---
-application:
+  # Asigna nombres lógicos a los canales del INA3221
+  ina3221_channel_map:
+    vin_current: 1        # Mide la corriente que entra desde la fuente de 12V
+    battery_charge_current: 2 # Mide la corriente de carga hacia la batería
+    # channel_3: 3        # Canal de repuesto
+
+# --------------------------------------------------------------------
+# C - Umbrales y Parámetros del Test
+# Límites para determinar si una prueba es PASS o FAIL.
+# --------------------------------------------------------------------
+test_thresholds:
+  # Corriente máxima permitida en modo de bajo consumo (medida con PPK2)
+  sleep_current_max_ua: 50.0
+  # Límites para la corriente de entrada de 12V (medida con INA3221)
+  vin_current_min_ma: 10.0
+  vin_current_max_ma: 200.0
+  # Límites para la corriente de carga de la batería (medida con INA3221)
+  battery_charge_min_ma: 50.0
+  battery_charge_max_ma: 300.0
+
+# --------------------------------------------------------------------
+# D - Mensajes de la Interfaz
+# Textos que se mostrarán en la GUI para cada paso del procedimiento.
+# --------------------------------------------------------------------
+ui_messages:
+  # Fase 1: Chequeos Iniciales
+  step_connect_battery: "Paso {}: Conectando batería"
+  step_apply_vin: "Paso {}: Aplicando alimentación externa (12V)"
+  step_check_initial_status: "Paso {}: Verificando estado inicial por RS485"
+  step_measure_active_power: "Paso {}: Midiendo consumos en activo (INA3221)"
+
+  # Fase 2: Pruebas Funcionales
+  step_test_tampers: "Paso {}: Probando entradas de tamper"
+  step_test_onboard_relay: "Paso {}: Verificando relé de la placa"
+
+  # Fase 3: Transición a Baja Potencia
+  step_disconnect_battery: "Paso {}: Desconectando batería"
+  step_enable_ua_meter: "Paso {}: Activando alimentación desde uA Meter (3.7V)"
+  step_disconnect_vin: "Paso {}: Desconectando alimentación externa (12V)"
+
+  # Fase 4: Medición de Bajo Consumo
+  step_check_status_on_ua: "Paso {}: Verificando estado con alimentación uA"
+  step_set_low_power_mode: "Paso {}: Enviando a modo de bajo consumo"
+  step_measure_sleep_current: "Paso {}: Midiendo consumo en reposo (uA)"
+
+  # Fase 5: Finalización y Reporte
+  step_wakeup_from_sleep: "Paso {}: Esperando vuelta a modo normal"
+  step_send_current_result: "Paso {}: Enviando resultado de consumo al DUT"
+  step_get_barcode: "Paso {}: Obteniendo barcode y número de serie"
+  step_force_modem_send: "Paso {}: Forzando envío de JSON del módem"
+
+# --------------------------------------------------------------------
+# E - Configuración del Servidor y API
+# Datos para reportar los resultados a la plataforma central.
+# --------------------------------------------------------------------
+api:
+  endpoint_url: "http://tu-servidor.com/api/v1/test_results"
+  key: "SECRET_API_KEY_GOES_HERE"
+  request_timeout_s: 10
+
+# --------------------------------------------------------------------
+# F - Parámetros Generales de la Aplicación
+# --------------------------------------------------------------------
+logging:
   # Nivel de detalle del log: DEBUG, INFO, WARNING, ERROR
-  log_level: "INFO"
-  log_file_path: "./logs/"
-  app_title: "JIT AC Controller Test"
+  level: "INFO"
+  file_path: "./logs/"
