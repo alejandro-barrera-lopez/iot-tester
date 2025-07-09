@@ -25,7 +25,7 @@ class MainWindow:
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(1, weight=1)
 
-        # --- Creación de Widgets ---
+        # --- Creación de widgets ---
         self._create_status_frame()
         self._create_log_frame()
         self._create_action_frame()
@@ -98,7 +98,7 @@ class MainWindow:
         self.start_button.configure(state="disabled", text="PROBANDO...")
 
         # Crear una instancia del TestRunner, pasándole el config y el callback
-        runner = TestRunner(config=self.config, gui_callback=self.update_gui_callback)
+        runner = TestRunner(config_manager=self.config, gui_callback=self.update_gui_callback)
 
         # Ejecutar el test en un hilo
         test_thread = threading.Thread(
