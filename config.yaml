@@ -44,10 +44,12 @@ api_config:
 # Asigna una función a cada número de relé para que el código sea más legible.
 resource_mapping:
   relay_map:
-    vin_power: 3   # Relé que controla la alimentación principal de 12V
     tamper_1: 1    # Relé para simular el tamper en IN1
     tamper_2: 2    # Relé para simular el tamper en IN2
-    spare: 4       # Relé de repuesto, sin uso actual
+    vin_power: 1   # Relé que controla la alimentación principal de 12V
+    # vin_power: 3   # Relé que controla la alimentación principal de 12V
+    spare: 2       # Relé de repuesto, sin uso actual
+    # spare: 4       # Relé de repuesto, sin uso actual
 
 # --- Parámetros generales de la aplicación ---
 application:
