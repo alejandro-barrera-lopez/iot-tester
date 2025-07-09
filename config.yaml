@@ -46,8 +46,8 @@ hardware:
 resource_mapping:
   # El nombre de la clave se usará en el código, el valor es el número de relé.
   relay_map:
-    connect_tamper_1: 1   # Conecta GND a TAMP1 para simular tamper
-    connect_tamper_2: 2   # Conecta GND a TAMP2 para simular tamper
+    # connect_tamper_1: 1   # Conecta GND a TAMP1 para simular tamper
+    # connect_tamper_2: 2   # Conecta GND a TAMP2 para simular tamper
     apply_vin_power: 1    # Conecta 12V a VIN para alimentar desde fuente externa
     connect_battery: 2    # Conecta la batería a la entrada de batería del DUT
 
