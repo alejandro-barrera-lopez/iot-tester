@@ -69,8 +69,7 @@ class TestRunner:
         relay_cfg = hardware_cfg.get("relay_controller", {})
         self.relay_controller = RelayController(
             num_relays=len(self.config.get("resource_mapping", {}).get("relay_map", {})),
-            serial_number=relay_cfg.get("serial_number", ""),
-            port=relay_cfg.get("port", None)
+            serial_number=relay_cfg.get("serial_number", "")
         )
 
         self.relay_controller.connect()

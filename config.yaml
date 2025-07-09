@@ -19,7 +19,7 @@ hardware:
   relay_controller:
     # El tipo de driver a usar (en este caso, el de HID)
     type: "hid"
-    port: "/dev/ttyACM0"
+    # port: "/dev/ttyACM0"
     # Opcional, pero recomendado. El S/N de tu placa de relés.
     serial_number: ""
 
