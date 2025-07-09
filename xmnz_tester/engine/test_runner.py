@@ -22,6 +22,7 @@ class TestRunner:
         self.config = config
         self.callback = gui_callback
         self.overall_status = "PASS"
+        self.step_counter = 0
 
         # Los controladores se inicializarán en connect_all_hardware()
         self.relay_controller = None
@@ -43,11 +44,13 @@ class TestRunner:
         Punto de entrada principal. Ejecuta la secuencia completa de tests.
         Este método está diseñado para ser ejecutado en un hilo separado.
         """
+        self.step_counter = 0
+
         try:
-            # --- 1. Conexión al Hardware ---
+            # --- 1. Conexión al hardware ---
             self._connect_all_hardware()
 
-            # --- 2. Ejecución de los Pasos del Test ---
+            # --- 2. Ejecución de los pasos del test ---
             self._run_test_steps()
 
         except Exception as e:
@@ -112,10 +115,10 @@ class TestRunner:
 
         # Test procedure:
         # 1- Connect the battery (REL4 ON). DUT start autotesting
-        # self._test_step_enable_battery()
+        self._test_step_enable_battery()
 
         # 2- Power the device from Vin (REL3 ON)
-        # self._test_step_enable_vin()
+        self._test_step_enable_vin()
 
         # 3- By rs485, check status, get imei, icc, i2c sensors...
         # self._test_step_check_board_autotest()
@@ -166,8 +169,47 @@ class TestRunner:
         # self._test_step_check_serial()
         self._test_step_check_relays()
         # self._test_step_measure_current()
-        # self._test_step_check_ina3221()
         # self._test_step_check_ina3221_averaged()
+
+    def _start_step(self, message_key: str):
+        """
+        Incrementa el contador, formatea y reporta el mensaje de inicio de un paso.
+        """
+        self.step_counter += 1
+
+        # Obtenemos la plantilla y le damos un mensaje por defecto si no la encuentra
+        message_template = self.config.get("ui_messages", {}).get(message_key, f"Iniciando: {message_key}")
+
+        # Formateamos y reportamos
+        final_message = message_template.format(self.step_counter)
+        self._report(final_message, "INFO")
+
+    def _test_step_enable_battery(self):
+        """ Connect the battery (REL4 ON) to power the DUT. """
+        self._start_step("step_connect_battery")
+
+        try:
+            self.relay_controller.set_relay(4, True)
+            time.sleep(1)
+            if self.relay_controller.get_relay(4):
+                self._report("Batería conectada correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al conectar la batería -> FAIL", "FAIL")
+        except Exception as e:
+            self._report(f"Error al conectar la batería: {e}", "FAIL")
+
+    def _test_step_enable_vin(self):
+        """ Power the device from Vin (REL3 ON). """
+        self._start_step("step_connect_battery")
+        try:
+            self.relay_controller.set_relay(3, True)
+            time.sleep(1)  # Esperar un segundo para estabilizar
+            if self.relay_controller.get_relay_state(3):
+                self._report("Vin activado correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al activar Vin -> FAIL", "FAIL")
+        except Exception as e:
+            self._report(f"Error al activar Vin: {e}", "FAIL")
 
     def _test_step_check_relays(self):
         """Ejemplo de paso: Verifica que los relés se pueden activar y desactivar."""
@@ -203,37 +245,6 @@ class TestRunner:
 
         except Exception as e:
             self._report(f"Error al verificar relés: {e}", "FAIL")
-
-    def _test_step_check_ina3221(self):
-        """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
-        self._report("Paso 3: Verificando INA3221...", "INFO")
-
-        try:
-            meter_cfg = self.config.get("power_meter_ina3221", {})
-
-            with PowerMeterINA3221(**meter_cfg) as power_meter:
-                all_channels_ok = True
-                report_lines = []
-
-                # Iterar sobre los 3 canales del INA3221
-                for channel in range(1, 4):
-                    data = power_meter.read_channel(channel)
-
-                    if data:
-                        voltage = data['bus_voltage_V']
-                        current = data['current_mA']
-                        report_lines.append(f"  - Canal {channel}: {voltage:.3f} V, {current:.3f} mA")
-                    else:
-                        self._report(f"Fallo al leer el canal {channel} del INA3221 -> FAIL", "FAIL")
-                        all_channels_ok = False
-                        break
-
-                if all_channels_ok:
-                    full_report = "Lecturas del INA3221 correctas:\n" + "\n".join(report_lines)
-                    self._report(f"{full_report}\n -> PASS", "PASS")
-
-        except Exception as e:
-            self._report(f"Error al inicializar o comunicar con el INA3221: {e}", "FAIL")
 
     def _test_step_check_ina3221_averaged(self):
         """Verifica el INA3221 tomando una media de mediciones durante un tiempo determinado."""
