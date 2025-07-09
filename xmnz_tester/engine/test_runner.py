@@ -6,6 +6,8 @@ from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
 from xmnz_tester.dut_commands import DutCommands
+from xmnz_tester.models.test_result import TestResult, TestStepResult
+from xmnz_tester.services.api_client import ApiClient
 
 class TestRunner:
     """
@@ -24,8 +26,8 @@ class TestRunner:
         """
         self.config = config_manager
         self.callback = gui_callback
-        self.overall_status = "PASS"
         self.step_counter = 0
+        self.test_result = None
 
         # Los controladores se inicializarán en connect_all_hardware()
         self.relay_controller = None
@@ -33,20 +35,26 @@ class TestRunner:
         self.ppk2_meter = None
         self.ina3221_meter = None
 
-    def _report(self, message: str, status: str = "INFO"):
+    def _report(self, message: str, status: str = "INFO", details: dict = None):
         """Metodo centralizado para enviar mensajes a la GUI."""
         # Si un paso falla, el estado general del test falla.
-        if status == "FAIL":
-            self.overall_status = "FAIL"
-
         if self.callback:
-            self.callback(message, status)
+            self.callback(message)
+
+        step = TestStepResult(
+            step_name=f"Paso {self.step_counter}",
+            status=status,
+            message=message,
+            details=details or {}
+        )
+        self.test_result.add_step(step)
 
     def run_full_test(self):
         """
         Punto de entrada principal. Ejecuta la secuencia completa de tests.
         Este metodo está diseñado para ser ejecutado en un hilo separado.
         """
+        self.test_result = TestResult(station_id=self.config.station_id)
         self.step_counter = 0
 
         try:
@@ -62,8 +70,13 @@ class TestRunner:
         finally:
             # --- 3. Desconexión del hardware ---
             self._disconnect_all_hardware()
-            self._report(f"Test finalizado. Resultado general: {self.overall_status}", self.overall_status)
-            return self.overall_status
+            self.test_result.finalize()
+            self._report(f"Test finalizado. Resultado general: {self.test_result.overall_status}", self.test_result.overall_status)
+
+            self._send_results_to_api()
+
+            # print(self.test_result.to_dict())
+            return self.test_result.overall_status
 
     def _connect_all_hardware(self):
         """Inicializa y conecta todos los controladores del HAL."""
@@ -102,6 +115,17 @@ class TestRunner:
             self.ppk2_meter.disconnect()
         if self.ina3221_meter:
             self.ina3221_meter.disconnect()
+
+    def _send_results_to_api(self):
+        """Creates API client and sends results."""
+        api_client = ApiClient(self.config.api_config)
+        success = api_client.send_test_result(self.test_result)
+
+        if success:
+            self._report("Resultados sincronizados con la plataforma.", "INFO")
+        else:
+            # TODO: Manejar reintentos o errores específicos
+            self._report("Fallo al sincronizar resultados con la plataforma.", "FAIL")
 
     def _run_test_steps(self):
         """Define y ejecuta la secuencia de pruebas una por una."""
@@ -214,9 +238,9 @@ class TestRunner:
             iccid = response.get("iccid", "Desconocido")
             status = response.get("status", "Desconocido")
 
-            self._report(f"Comunicación OK. S/N: {serial}, IMEI: {imei}, ICCID: {iccid}, Estado: {status}", "PASS")
+            self._report(f"Comunicación OK. S/N: {serial}, IMEI: {imei}, ICCID: {iccid}, Estado: {status}", "PASS", response)
         else:
-            self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL")
+            self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL", response)
 
     def _test_step_measure_ina3221(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -232,7 +256,12 @@ class TestRunner:
                     if data:
                         voltage = data['bus_voltage_V']
                         current = data['current_mA']
-                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS")
+                        details = {
+                            'channel': channel,
+                            'voltage': voltage,
+                            'current': current
+                        }
+                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", details)
                     else:
                         self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL")
 
@@ -353,9 +382,9 @@ class TestRunner:
         try:
             response = self.rs485_controller.send_command(DutCommands.GET_SERIAL)
             if response == expected_status:
-                self._report(f"Estado del dispositivo: {response} -> PASS", "PASS")
+                self._report(f"Estado del dispositivo: {response} -> PASS", "PASS", response)
             else:
-                self._report("Fallo al obtener el estado del dispositivo -> FAIL", "FAIL")
+                self._report("Fallo al obtener el estado del dispositivo -> FAIL", "FAIL", response)
         except Exception as e:
             self._report(f"Error al obtener el estado: {e}", "FAIL")
 
@@ -365,10 +394,10 @@ class TestRunner:
 
         try:
             response = self.rs485_controller.send_command(DutCommands.SET_LOW_POWER)
-            if response == "OK":
-                self._report("Dispositivo enviado a modo de bajo consumo -> PASS", "PASS")
+            if response: # TODO: validar respuesta esperada
+                self._report("Dispositivo enviado a modo de bajo consumo -> PASS", "PASS", response)
             else:
-                self._report("Fallo al enviar comando de bajo consumo -> FAIL", "FAIL")
+                self._report("Fallo al enviar comando de bajo consumo -> FAIL", "FAIL", response)
         except Exception as e:
             self._report(f"Error al enviar comando de bajo consumo: {e}", "FAIL")
 

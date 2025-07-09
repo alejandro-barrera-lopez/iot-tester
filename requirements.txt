@@ -1,5 +1,7 @@
-pyserial
+pyserial~=3.5
 pyhid_usb_relay
-customtkinter
+customtkinter~=5.2.2
 pi-ina219
 ppk2-api
+requests~=2.32.4
+PyYAML~=6.0.2
