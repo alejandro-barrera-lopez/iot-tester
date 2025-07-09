@@ -1,6 +1,6 @@
 import time
 import customtkinter as ctk
-from xmnz_tester.config import load_config
+from xmnz_tester.config import ConfigManager
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     try:
         # Cargar la configuración
-        config = load_config()
+        config = ConfigManager()
 
         launch_gui()
 

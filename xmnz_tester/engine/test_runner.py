@@ -4,13 +4,14 @@ from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
+from xmnz_tester.config import ConfigManager
 
 class TestRunner:
     """
     Orquesta la secuencia completa de tests, interactuando con la capa HAL
     y reportando los resultados a través de una función callback.
     """
-    def __init__(self, config: dict, gui_callback: callable):
+    def __init__(self, config_manager: ConfigManager, gui_callback: callable):
         """
         Inicializa el motor de test.
 
@@ -19,7 +20,7 @@ class TestRunner:
             gui_callback (callable): Función para enviar actualizaciones a la GUI.
                                      Debe aceptar dos argumentos: (mensaje, estado).
         """
-        self.config = config
+        self.config = config_manager
         self.callback = gui_callback
         self.overall_status = "PASS"
         self.step_counter = 0
@@ -66,35 +67,26 @@ class TestRunner:
         """Inicializa y conecta todos los controladores del HAL."""
         self._report("--- Conectando al hardware ---", "HEADER")
 
-        hardware_cfg = self.config.get("hardware", {})
-
         # Conectar relés
-        relay_cfg = hardware_cfg.get("relay_controller", {})
         self.relay_controller = RelayController(
-            num_relays=len(self.config.get("resource_mapping", {}).get("relay_map", {})),
-            serial_number=relay_cfg.get("serial_number", "")
+            num_relays=len(self.config.relay_map),
+            serial_number=self.config.relay_serial_number
         )
-
         self.relay_controller.connect()
 
         # Conectar RS485
-        rs485_cfg = hardware_cfg.get("rs485", {})
         self.rs485_controller = RS485Controller(
-            port=rs485_cfg.get("port"),
-            baud_rate=rs485_cfg.get("baud_rate")
+            port=self.config.rs485_port,
+            baud_rate=self.config.rs485_baud_rate
         )
         self.rs485_controller.connect()
 
-        meters_cfg = hardware_cfg.get("power_meters", {})
-
         # Conectar PPK2
-        ppk2_cfg = meters_cfg.get("ua_meter_ppk2", {})
-        self.ppk2_meter = PowerMeterPPK2(serial_number=ppk2_cfg.get("serial_number"))
+        self.ppk2_meter = PowerMeterPPK2(serial_number=self.config.ppk2_serial_number)
         self.ppk2_meter.connect()
 
         # Conectar INA3221
-        ina_cfg = meters_cfg.get("active_meter_ina3221", {})
-        self.ina3221_meter = PowerMeterINA3221(**ina_cfg)
+        self.ina3221_meter = PowerMeterINA3221(**self.config.ina3221_config)
         self.ina3221_meter.connect()
 
     def _disconnect_all_hardware(self):
@@ -177,21 +169,22 @@ class TestRunner:
         """
         self.step_counter += 1
 
-        # Obtenemos la plantilla y le damos un mensaje por defecto si no la encuentra
-        message_template = self.config.get("ui_messages", {}).get(message_key, f"Iniciando: {message_key}")
+        messages = self.config.ui_messages
 
-        # Formateamos y reportamos
+        message_template = messages.get(message_key, f"Iniciando: {message_key}")
+
         final_message = message_template.format(self.step_counter)
         self._report(final_message, "INFO")
 
     def _test_step_enable_battery(self):
         """ Connect the battery (REL4 ON) to power the DUT. """
         self._start_step("step_connect_battery")
+        relay_id = self.config.relay_num_battery
 
         try:
-            self.relay_controller.set_relay(4, True)
+            self.relay_controller.set_relay(relay_id, True)
             time.sleep(1)
-            if self.relay_controller.get_relay(4):
+            if self.relay_controller.get_relay(relay_id):
                 self._report("Batería conectada correctamente -> PASS", "PASS")
             else:
                 self._report("Fallo al conectar la batería -> FAIL", "FAIL")
@@ -201,10 +194,12 @@ class TestRunner:
     def _test_step_enable_vin(self):
         """ Power the device from Vin (REL3 ON). """
         self._start_step("step_connect_battery")
+        relay_id = self.config.relay_num_vin_power
+
         try:
-            self.relay_controller.set_relay(3, True)
+            self.relay_controller.set_relay(relay_id, True)
             time.sleep(1)  # Esperar un segundo para estabilizar
-            if self.relay_controller.get_relay_state(3):
+            if self.relay_controller.get_relay_state(relay_id):
                 self._report("Vin activado correctamente -> PASS", "PASS")
             else:
                 self._report("Fallo al activar Vin -> FAIL", "FAIL")
@@ -234,7 +229,7 @@ class TestRunner:
             else:
                 self._report("Fallo al activar el Relé 2 -> FAIL", "FAIL")
 
-            # Desactivar los relñes
+            # Desactivar los relés
             self.relay_controller.all_off()
             time.sleep(1)  # Esperar un segundo para estabilizar
 
@@ -253,7 +248,7 @@ class TestRunner:
         duration_s = 2.0  # Duración del muestreo
 
         try:
-            meter_cfg = self.config.get("power_meter_ina3221", {})
+            meter_cfg = self.config.ina3221_config
 
             with PowerMeterINA3221(**meter_cfg) as power_meter:
                 # 1. Estructura para almacenar todas las lecturas de cada canal
@@ -325,10 +320,9 @@ class TestRunner:
 
         try:
             # 1. Cargar toda la configuración necesaria al principio
-            ppk2_cfg = self.config.get("power_meter_ppk2", {})
-            serial_number = ppk2_cfg.get("serial_number")
-            voltage_mv = ppk2_cfg.get("source_voltage_mv", 3300)
-            threshold_ua = self.config.get("test_thresholds", {}).get("sleep_current_max_ua", 50.0)
+            serial_number = self.config.ppk2_serial_number
+            voltage_mv = self.config.ppk2_source_voltage_mv
+            threshold_ua = self.config.test_thresholds.get("low_power_current_threshold_ua", 1000)
 
             with PowerMeterPPK2(serial_number=serial_number) as ppk2_meter:
                 # 2a. Configurar el PPK2 y encender el dispositivo
@@ -341,7 +335,7 @@ class TestRunner:
                 time.sleep(2)  # Aumentado a 2s para asegurar la estabilización
 
                 # 4. Medir la corriente
-                # El método ya devuelve la media en uA, como se ve en el PoC.
+                # El metodo ya devuelve la media en uA, como se ve en el PoC.
                 avg_current = ppk2_meter.measure_average_current(duration_s=3)
 
                 # 5. Verificar que la medición fue exitosa antes de comparar

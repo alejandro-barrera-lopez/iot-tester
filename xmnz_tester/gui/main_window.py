@@ -1,7 +1,7 @@
 import customtkinter as ctk
 import threading
 from xmnz_tester.engine.test_runner import TestRunner
-from xmnz_tester.config import load_config
+from xmnz_tester.config import ConfigManager
 
 # Define una paleta de colores para los estados
 STATUS_COLORS = {
@@ -31,7 +31,7 @@ class MainWindow:
         self._create_action_frame()
 
         # --- Cargar configuración ---
-        self.config = load_config()
+        self.config = ConfigManager()
 
     def _create_status_frame(self):
         """Crea el marco superior con el estado general y el número de serie."""
