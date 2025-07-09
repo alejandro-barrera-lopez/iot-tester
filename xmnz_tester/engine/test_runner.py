@@ -184,7 +184,7 @@ class TestRunner:
         try:
             self.relay_controller.set_relay(relay_id, True)
             time.sleep(1)
-            if self.relay_controller.get_relay(relay_id):
+            if self.relay_controller.get_relay_state(relay_id):
                 self._report("Batería conectada correctamente -> PASS", "PASS")
             else:
                 self._report("Fallo al conectar la batería -> FAIL", "FAIL")
