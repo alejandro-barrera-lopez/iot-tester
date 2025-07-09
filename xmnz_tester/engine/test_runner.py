@@ -587,15 +587,6 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al verificar INA3221: {e}", "FAIL")
 
-    def _test_step_check_serial(self):
-        """Ejemplo de paso: Lee el número de serie y verifica que no esté vacío."""
-        self._report("Paso 1: Verificando comunicación y S/N...", "INFO")
-        response = self.rs485_controller.send_command(DutCommands.GET_SERIAL)
-        if response and len(response) > 5:
-            self._report(f"Comunicación OK. S/N Leído: {response}", "PASS")
-        else:
-            self._report("Fallo al leer S/N o respuesta inválida.", "FAIL")
-
     def _test_step_measure_current(self):
         """Ejemplo: Mide el consumo en reposo y lo compara con un umbral."""
         self._report("Paso 2: Midiendo consumo en reposo...", "INFO")
