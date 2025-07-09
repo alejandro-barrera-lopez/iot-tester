@@ -27,7 +27,7 @@ class TestRunner:
         self.relay_controller = None
         self.rs485_controller = None
         self.ppk2_meter = None
-        self.ina3321_meter = None
+        self.ina3221_meter = None
 
     def _report(self, message: str, status: str = "INFO"):
         """Método centralizado para enviar mensajes a la GUI."""
@@ -63,29 +63,35 @@ class TestRunner:
         """Inicializa y conecta todos los controladores del HAL."""
         self._report("--- Conectando al hardware ---", "HEADER")
 
+        hardware_cfg = self.config.get("hardware", {})
+
         # Conectar relés
-        relay_cfg = self.config.get("hardware_ports", {})
+        relay_cfg = hardware_cfg.get("relay_controller", {})
         self.relay_controller = RelayController(
             num_relays=len(self.config.get("resource_mapping", {}).get("relay_map", {})),
-            serial_number=relay_cfg.get("relay_controller_serial_number")
+            serial_number=relay_cfg.get("serial_number", ""),
+            port=relay_cfg.get("port", None)
         )
+
         self.relay_controller.connect()
 
         # Conectar RS485
-        rs485_cfg = self.config.get("hardware_ports", {})
+        rs485_cfg = hardware_cfg.get("rs485", {})
         self.rs485_controller = RS485Controller(
-            port=rs485_cfg.get("rs485_port"),
+            port=rs485_cfg.get("port"),
             baud_rate=rs485_cfg.get("baud_rate")
         )
         self.rs485_controller.connect()
 
+        meters_cfg = hardware_cfg.get("power_meters", {})
+
         # Conectar PPK2
-        ppk2_cfg = self.config.get("power_meter_ppk2", {})
+        ppk2_cfg = meters_cfg.get("ua_meter_ppk2", {})
         self.ppk2_meter = PowerMeterPPK2(serial_number=ppk2_cfg.get("serial_number"))
         self.ppk2_meter.connect()
 
         # Conectar INA3221
-        ina_cfg = self.config.get("power_meter_ina3221", {})
+        ina_cfg = meters_cfg.get("active_meter_ina3221", {})
         self.ina3221_meter = PowerMeterINA3221(**ina_cfg)
         self.ina3221_meter.connect()
 

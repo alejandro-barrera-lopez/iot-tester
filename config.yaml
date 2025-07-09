@@ -13,12 +13,13 @@ station:
 # --------------------------------------------------------------------
 hardware:
   rs485:
-    port: COM11 # o /dev/ttyUSB0 en Linux
+    port: "/dev/ttyUSB0"
     baud_rate: 115200
 
   relay_controller:
     # El tipo de driver a usar (en este caso, el de HID)
     type: "hid"
+    port: "/dev/ttyACM0"
     # Opcional, pero recomendado. El S/N de tu placa de relés.
     serial_number: ""
 
