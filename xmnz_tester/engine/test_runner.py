@@ -1,4 +1,5 @@
 import time
+import statistics
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.rs485 import RS485Controller
 from xmnz_tester.hal.ppk2 import PowerMeterPPK2
@@ -21,11 +22,13 @@ class TestRunner:
         self.config = config
         self.callback = gui_callback
         self.overall_status = "PASS"
+        self.step_counter = 0
 
         # Los controladores se inicializarán en connect_all_hardware()
         self.relay_controller = None
         self.rs485_controller = None
         self.ppk2_meter = None
+        self.ina3221_meter = None
 
     def _report(self, message: str, status: str = "INFO"):
         """Método centralizado para enviar mensajes a la GUI."""
@@ -41,11 +44,13 @@ class TestRunner:
         Punto de entrada principal. Ejecuta la secuencia completa de tests.
         Este método está diseñado para ser ejecutado en un hilo separado.
         """
+        self.step_counter = 0
+
         try:
-            # --- 1. Conexión al Hardware ---
+            # --- 1. Conexión al hardware ---
             self._connect_all_hardware()
 
-            # --- 2. Ejecución de los Pasos del Test ---
+            # --- 2. Ejecución de los pasos del test ---
             self._run_test_steps()
 
         except Exception as e:
@@ -61,26 +66,36 @@ class TestRunner:
         """Inicializa y conecta todos los controladores del HAL."""
         self._report("--- Conectando al hardware ---", "HEADER")
 
-        # Conectar Relés
-        relay_cfg = self.config.get("hardware_ports", {})
+        hardware_cfg = self.config.get("hardware", {})
+
+        # Conectar relés
+        relay_cfg = hardware_cfg.get("relay_controller", {})
         self.relay_controller = RelayController(
             num_relays=len(self.config.get("resource_mapping", {}).get("relay_map", {})),
-            serial_number=relay_cfg.get("relay_controller_serial_number")
+            serial_number=relay_cfg.get("serial_number", "")
         )
+
         self.relay_controller.connect()
 
         # Conectar RS485
-        rs485_cfg = self.config.get("hardware_ports", {})
+        rs485_cfg = hardware_cfg.get("rs485", {})
         self.rs485_controller = RS485Controller(
-            port=rs485_cfg.get("rs485_port"),
+            port=rs485_cfg.get("port"),
             baud_rate=rs485_cfg.get("baud_rate")
         )
         self.rs485_controller.connect()
 
+        meters_cfg = hardware_cfg.get("power_meters", {})
+
         # Conectar PPK2
-        ppk2_cfg = self.config.get("power_meter_ppk2", {})
+        ppk2_cfg = meters_cfg.get("ua_meter_ppk2", {})
         self.ppk2_meter = PowerMeterPPK2(serial_number=ppk2_cfg.get("serial_number"))
         self.ppk2_meter.connect()
+
+        # Conectar INA3221
+        ina_cfg = meters_cfg.get("active_meter_ina3221", {})
+        self.ina3221_meter = PowerMeterINA3221(**ina_cfg)
+        self.ina3221_meter.connect()
 
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
@@ -91,18 +106,110 @@ class TestRunner:
             self.rs485_controller.disconnect()
         if self.ppk2_meter:
             self.ppk2_meter.disconnect()
+        if self.ina3221_meter:
+            self.ina3221_meter.disconnect()
 
     def _run_test_steps(self):
         """Define y ejecuta la secuencia de pruebas una por una."""
         self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
+        # Test procedure:
+        # 1- Connect the battery (REL4 ON). DUT start autotesting
+        self._test_step_enable_battery()
+
+        # 2- Power the device from Vin (REL3 ON)
+        self._test_step_enable_vin()
+
+        # 3- By rs485, check status, get imei, icc, i2c sensors...
+        # self._test_step_check_board_autotest()
+
+        # 4- Measure INA3221 both channels
+        # self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
+
+        # 5- Test tampering inputs
+        # self._test_step_check_tampers()
+
+        # 6- Test board relay (REL1 ON, ...)
+        # self._test_step_check_board_relay()
+
+        # 7- Disconnect the battery (REL4 OFF)
+        # self._test_step_disable_battery()
+
+        # 8- Enable 3v7 with uA
+        # self._test_step_enable_3v7()
+
+        # 9- Disconnect Vin (REL3 OFF)
+        # self._test_step_disable_vin()
+
+        # 10- GetStatus
+        # self._test_step_get_status()
+
+        # 11- Send the board to LowPower
+        # self._test_step_send_low_power()
+
+        # 12- Measure low current with uA
+        # self._test_step_measure_low_current()
+
+        # 13- Wait to normal mode
+        # self._test_step_wait_normal_mode()
+
+        # 14- Send uA current value to DUT
+        # self._test_step_send_uA_current()
+
+        # 15- Get barcode and serial number
+        # self._test_step_get_barcode_and_serial()
+
+        # 16- Force sending modem json
+        # self._test_step_force_send_modem_json()
+
+        # 17- Finish testing
+
+
         # Cada paso es una función separada
         # self._test_step_check_serial()
         self._test_step_check_relays()
-        self._test_step_measure_current()
-        self._test_step_check_ina3221()
-        # self._test_step_check_vin()
-        # self._test_step_check_tampers()
+        # self._test_step_measure_current()
+        # self._test_step_check_ina3221_averaged()
+
+    def _start_step(self, message_key: str):
+        """
+        Incrementa el contador, formatea y reporta el mensaje de inicio de un paso.
+        """
+        self.step_counter += 1
+
+        # Obtenemos la plantilla y le damos un mensaje por defecto si no la encuentra
+        message_template = self.config.get("ui_messages", {}).get(message_key, f"Iniciando: {message_key}")
+
+        # Formateamos y reportamos
+        final_message = message_template.format(self.step_counter)
+        self._report(final_message, "INFO")
+
+    def _test_step_enable_battery(self):
+        """ Connect the battery (REL4 ON) to power the DUT. """
+        self._start_step("step_connect_battery")
+
+        try:
+            self.relay_controller.set_relay(4, True)
+            time.sleep(1)
+            if self.relay_controller.get_relay(4):
+                self._report("Batería conectada correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al conectar la batería -> FAIL", "FAIL")
+        except Exception as e:
+            self._report(f"Error al conectar la batería: {e}", "FAIL")
+
+    def _test_step_enable_vin(self):
+        """ Power the device from Vin (REL3 ON). """
+        self._start_step("step_connect_battery")
+        try:
+            self.relay_controller.set_relay(3, True)
+            time.sleep(1)  # Esperar un segundo para estabilizar
+            if self.relay_controller.get_relay_state(3):
+                self._report("Vin activado correctamente -> PASS", "PASS")
+            else:
+                self._report("Fallo al activar Vin -> FAIL", "FAIL")
+        except Exception as e:
+            self._report(f"Error al activar Vin: {e}", "FAIL")
 
     def _test_step_check_relays(self):
         """Ejemplo de paso: Verifica que los relés se pueden activar y desactivar."""
@@ -139,36 +246,69 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al verificar relés: {e}", "FAIL")
 
-    def _test_step_check_ina3221(self):
-        """Ejemplo de paso: Verifica que el INA3221 responde correctamente."""
-        self._report("Paso 3: Verificando INA3221...", "INFO")
+    def _test_step_check_ina3221_averaged(self):
+        """Verifica el INA3221 tomando una media de mediciones durante un tiempo determinado."""
+        self._report("Paso 3: Verificando INA3221 (promedio de 2 segundos)...", "INFO")
+
+        duration_s = 2.0  # Duración del muestreo
 
         try:
             meter_cfg = self.config.get("power_meter_ina3221", {})
 
             with PowerMeterINA3221(**meter_cfg) as power_meter:
-                all_channels_ok = True
+                # 1. Estructura para almacenar todas las lecturas de cada canal
+                # Ejemplo: {1: {'voltages': [v1, v2, ...], 'currents': [c1, c2, ...]}, 2: {...}}
+                readings = {ch: {'voltages': [], 'currents': []} for ch in range(1, 4)}
+
+                start_time = time.monotonic()
+                sample_count = 0
+
+                # 2. Bucle de muestreo durante el tiempo especificado
+                while time.monotonic() - start_time < duration_s:
+                    for channel in range(1, 4):
+                        data = power_meter.read_channel(channel)
+                        if data:
+                            readings[channel]['voltages'].append(data['bus_voltage_V'])
+                            readings[channel]['currents'].append(data['current_mA'])
+                        else:
+                            self._report(f"Fallo al leer el canal {channel} durante el muestreo -> FAIL", "FAIL")
+                            return
+
+                    sample_count += 1
+                    time.sleep(0.1) # Pequeña pausa para no saturar el bus I2C
+
+                # 3. Calcular y reportar los promedios
+                if sample_count == 0:
+                    self._report("No se tomaron muestras del INA3221 en 2 segundos -> FAIL", "FAIL")
+                    return
+
                 report_lines = []
+                all_channels_ok = True
 
-                # Iterar sobre los 3 canales del INA3221
                 for channel in range(1, 4):
-                    data = power_meter.read_channel(channel)
+                    voltage_samples = readings[channel]['voltages']
+                    current_samples = readings[channel]['currents']
 
-                    if data:
-                        voltage = data['bus_voltage_V']
-                        current = data['current_mA']
-                        report_lines.append(f"  - Canal {channel}: {voltage:.3f} V, {current:.3f} mA")
-                    else:
-                        self._report(f"Fallo al leer el canal {channel} del INA3221 -> FAIL", "FAIL")
+                    if not voltage_samples or not current_samples:
+                        report_lines.append(f"  - Canal {channel}: No se obtuvieron datos.")
                         all_channels_ok = False
-                        break
+                        continue
 
+                    avg_voltage = statistics.mean(voltage_samples)
+                    avg_current = statistics.mean(current_samples)
+
+                    report_lines.append(f"  - Canal {channel}: {avg_voltage:.3f} V, {avg_current:.3f} mA (promedio de {len(voltage_samples)} muestras)")
+
+                # 4. Reporte final
                 if all_channels_ok:
-                    full_report = "Lecturas del INA3221 correctas:\n" + "\n".join(report_lines)
+                    full_report = "Lecturas promedio del INA3221 correctas:\n" + "\n".join(report_lines)
                     self._report(f"{full_report}\n -> PASS", "PASS")
+                else:
+                    full_report = "Fallo al procesar lecturas del INA3221:\n" + "\n".join(report_lines)
+                    self._report(f"{full_report}\n -> FAIL", "FAIL")
 
         except Exception as e:
-            self._report(f"Error al inicializar o comunicar con el INA3221: {e}", "FAIL")
+            self._report(f"Error al verificar INA3221: {e}", "FAIL")
 
     def _test_step_check_serial(self):
         """Ejemplo de paso: Lee el número de serie y verifica que no esté vacío."""
