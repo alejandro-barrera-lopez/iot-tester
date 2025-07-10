@@ -1,13 +1,14 @@
 import time
+import threading
 import statistics
-from xmnz_tester.config import ConfigManager
-from xmnz_tester.hal.relays import RelayController
-from xmnz_tester.hal.rs485 import RS485Controller
-from xmnz_tester.hal.ppk2 import PowerMeterPPK2
-from xmnz_tester.hal.ina3221 import PowerMeterINA3221
-from xmnz_tester.dut_commands import DutCommands
-from xmnz_tester.models.test_result import TestResult, TestStepResult
-from xmnz_tester.services.api_client import ApiClient
+from ..config import ConfigManager
+from ..hal.relays import RelayController
+from ..hal.rs485 import RS485Controller
+from ..hal.ppk2 import PowerMeterPPK2
+from ..hal.ina3221 import PowerMeterINA3221
+from ..models.test_result import TestResult, TestStepResult
+from ..dut_commands import DutCommands
+from ..services.api_client import ApiClient
 from .sequence_definition import TEST_SEQUENCE
 
 class TestRunner:
@@ -15,73 +16,76 @@ class TestRunner:
     Orquesta la secuencia completa de tests, interactuando con la capa HAL
     y reportando los resultados a través de una función callback.
     """
-    def __init__(self, config_manager: ConfigManager, gui_callback: callable):
+    def __init__(self, config_manager: ConfigManager, gui_callback: callable, stop_event: threading.Event):
         """
         Inicializa el motor de test.
 
         Args:
-            config_manager (ConfigManager): Instancia del gestor de configuración que contiene
-                                            la configuración del test.
+            config_manager (ConfigManager): La instancia del gestor de configuración.
             gui_callback (callable): Función para enviar actualizaciones a la GUI.
-                                     Debe aceptar dos argumentos: (mensaje, estado).
+            stop_event (threading.Event): Evento para señalar la detención del test.
         """
         self.config = config_manager
         self.callback = gui_callback
-        self.step_counter = 0
+        self.stop_event = stop_event
         self.test_result = None
+        self.step_counter = 0
 
-        # Los controladores se inicializarán en connect_all_hardware()
+        # Controladores del HAL
         self.relay_controller = None
         self.rs485_controller = None
         self.ppk2_meter = None
         self.ina3221_meter = None
 
-    def _report(self, message: str, status: str = "INFO", details: dict = None):
-        """Metodo centralizado para enviar mensajes a la GUI."""
+    def _report(self, message: str, status: str = "INFO", step_id: str = None, details: dict = None):
+        """Metodo centralizado para enviar mensajes a la GUI y guardar el resultado del paso."""
         # Si un paso falla, el estado general del test falla.
         if self.callback:
-            self.callback(message)
+            self.callback(step_id, message, status)
 
-        step = TestStepResult(
-            step_name=f"Paso {self.step_counter}",
-            status=status,
-            message=message,
-            details=details or {}
-        )
-        self.test_result.add_step(step)
+        if self.test_result:
+            step = TestStepResult(
+                step_name=f"Paso {self.step_counter}",
+                status=status,
+                message=message,
+                details=details or {}
+            )
+            self.test_result.add_step(step)
+
+    def _start_step(self, step_key: str):
+        """Incrementa, formatea y reporta el mensaje de inicio de un paso."""
+        self.step_counter += 1
+        method_name = f"_{step_key}"
+        message_template = self.config.ui_messages.get(step_key, f"Iniciando: {step_key}")
+        final_message = message_template.format(self.step_counter)
+        self._report(final_message, "TESTING", step_id=method_name)
 
     def run_full_test(self):
         """
         Punto de entrada principal. Ejecuta la secuencia completa de tests.
-        Este metodo está diseñado para ser ejecutado en un hilo separado.
         """
         self.test_result = TestResult(station_id=self.config.station_id)
         self.step_counter = 0
 
         try:
-            # --- 1. Conexión al hardware ---
             self._connect_all_hardware()
-
-            # --- 2. Ejecución de los pasos del test ---
             self._run_test_steps()
 
         except Exception as e:
-            self._report(f"ERROR CRÍTICO: {e}", "FAIL")
+            self._report(f"ERROR CRÍTICO: {e}", "FAIL", step_id="critical_error")
 
         finally:
-            # --- 3. Desconexión del hardware ---
             self._disconnect_all_hardware()
             self.test_result.finalize()
-            self._report(f"Test finalizado. Resultado general: {self.test_result.overall_status}", self.test_result.overall_status)
+            self._report(f"Test finalizado. Resultado general: {self.test_result.overall_status}", self.test_result.overall_status, step_id="final_summary")
 
             self._send_results_to_api()
 
-            # print(self.test_result.to_dict())
             return self.test_result.overall_status
 
     def _connect_all_hardware(self):
         """Inicializa y conecta todos los controladores del HAL."""
-        self._report("--- Conectando al hardware ---", "HEADER")
+        self._report("--- Conectando al hardware ---", "HEADER", step_id="connect_hardware")
 
         # Conectar relés
         self.relay_controller = RelayController(
@@ -107,7 +111,7 @@ class TestRunner:
 
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
-        self._report("--- Desconectando del hardware ---", "HEADER")
+        self._report("--- Desconectando del hardware ---", "HEADER", step_id="disconnect_hardware")
         if self.relay_controller:
             self.relay_controller.disconnect()
         if self.rs485_controller:
@@ -117,40 +121,27 @@ class TestRunner:
         if self.ina3221_meter:
             self.ina3221_meter.disconnect()
 
-    def _send_results_to_api(self):
-        """Creates API client and sends results."""
-        api_client = ApiClient(self.config.api_config)
-        success = api_client.send_test_result(self.test_result)
-
-        if success:
-            self._report("Resultados sincronizados con la plataforma.", "INFO")
-        else:
-            # TODO: Manejar reintentos o errores específicos
-            self._report("Fallo al sincronizar resultados con la plataforma.", "FAIL")
-
     def _run_test_steps(self):
         """Itera sobre la secuencia de claves y ejecuta el método correspondiente."""
-        self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
+        self._report("--- Iniciando secuencia de pruebas ---", "HEADER", step_id="sequence_start")
 
         for step_key in TEST_SEQUENCE:
             if self.stop_event and self.stop_event.is_set():
-                self._report("Test detenido por el usuario.", "FAIL")
+                self._report("Test detenido por el usuario.", "FAIL", step_id=f"_{step_key}")
                 break
 
-            # Construimos el nombre del método a partir de la clave
             method_name = f"_{step_key}"
 
             try:
                 method_to_call = getattr(self, method_name)
             except AttributeError:
-                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL")
+                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL", id=method_name)
                 break
 
-            # Llamamos al método del paso
             method_to_call()
 
             if self.test_result.overall_status == "FAIL":
-                self._report("La secuencia se detuvo debido a un fallo.", "INFO")
+                self._report("La secuencia se detuvo debido a un fallo.", "INFO", step_id="sequence_fail")
                 break
 
     # def _run_test_steps(self):
@@ -208,6 +199,17 @@ class TestRunner:
 
     #     # 17- Finish testing
     #     self._report("--- Secuencia de pruebas finalizada ---", "HEADER")
+
+    def _send_results_to_api(self):
+        """Crea el cliente API y envía los resultados."""
+        api_client = ApiClient(self.config.api_config)
+        success = api_client.send_test_result(self.test_result)
+
+        if success:
+            self._report("Resultados sincronizados con la plataforma.", "INFO", step_id="api_send")
+        else:
+            # TODO: Implementar lógica de reintentos o manejo de errores
+            self._report("Fallo al sincronizar resultados con la plataforma.", "FAIL", step_id="api_send")
 
     def _start_step(self, message_key: str):
         """

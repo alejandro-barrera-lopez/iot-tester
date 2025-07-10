@@ -1,8 +1,8 @@
 import customtkinter as ctk
 import threading
-from xmnz_tester.engine.sequence_definition import TEST_SEQUENCE
-from xmnz_tester.engine.test_runner import TestRunner
-from xmnz_tester.config import ConfigManager
+from ..engine.sequence_definition import TEST_SEQUENCE
+from ..engine.test_runner import TestRunner
+from ..config import ConfigManager
 
 STATUS_COLORS = {
     "default": ("#3498DB", "#2980B9"),  # Azul
