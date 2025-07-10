@@ -145,7 +145,7 @@ class TestRunner:
             # Llamamos al método pasando los argumentos desempaquetados
             method_to_call(*args, **kwargs)
 
-            if self.test_result.overall_status == "FAIL":
+            if self.test_result.overall_status == "FAIL" and self.config.stop_on_fail:
                 self._report("La secuencia se detuvo debido a un fallo.", "INFO")
                 break
 
