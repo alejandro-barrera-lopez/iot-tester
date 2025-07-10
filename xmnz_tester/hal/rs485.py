@@ -72,7 +72,7 @@ class RS485Controller:
         print(f"RX <-- {response_str}")
         return response_str
 
-    def get_board_info(self) -> dict:
+    def check_initial_status(self) -> dict:
         """
         Obtiene información básica del dispositivo conectado.
 

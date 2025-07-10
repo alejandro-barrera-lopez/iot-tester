@@ -150,52 +150,52 @@ class TestRunner:
 
     #     # Test procedure:
     #     # 1- Connect the battery (REL4 ON). DUT start autotesting
-    #     self._test_step_enable_battery()
+    #     self._test_step_connect_battery()
 
     #     # 2- Power the device from Vin (REL3 ON)
-    #     self._test_step_enable_vin()
+    #     self._test_step_apply_vin()
 
     #     # 3- By rs485, check status=plugged, get imei, icc, i2c sensors...
-    #     self._test_step_get_board_info()
+    #     self._test_step_check_initial_status()
 
     #     # 4- Measure INA3221 both channels
-    #     self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
+    #     self._test_step_measure_active_power() # TODO: ¿Abstraer INA3221 a un método genérico?
 
     #     # 5- Test tampering inputs
-    #     self._test_step_check_tampers()
+    #     self._test_step_test_tampers()
 
     #     # 6- Test board relay (with REL1 off and reading tamper in1)
-    #     self._test_step_check_board_relay()
+    #     self._test_step_test_onboard_relay()
 
     #     # 7- Disconnect the battery (REL4 OFF)
-    #     self._test_step_disable_battery()
+    #     self._test_step_disconnect_battery()
 
     #     # 8- Enable 3v7 with uA
-    #     self._test_step_enable_3v7()
+    #     self._test_step_simulate_battery()
 
     #     # 9- Disconnect Vin (REL3 OFF)
-    #     self._test_step_disable_vin()
+    #     self._test_step_disconnect_vin()
 
     #     # 10- GetStatus: stored
-    #     self._test_step_get_status("STATUS=2")
+    #     self._test_step_check_board_status("STATUS=2")
 
     #     # 11- Send the board to LowPower
-    #     self._test_step_send_low_power()
+    #     self._test_step_set_low_power_mode()
 
     #     # 12- Measure low current with uA
-    #     self._test_step_measure_low_current()
+    #     self._test_step_measure_sleep_current()
 
     #     # 13- Wait to normal mode
-    #     self._test_step_wait_normal_mode()
+    #     self._test_step_wakeup_from_sleep()
 
     #     # 14- Send uA current value to DUT
-    #     self._test_step_send_uA_current()
+    #     self._test_step_send_current_result()
 
     #     # 15- Get barcode and serial number
-    #     self._test_step_get_barcode_and_serial()
+    #     self._test_step_get_barcode()
 
     #     # 16- Force sending modem json
-    #     self._test_step_force_send_modem_json()
+    #     self._test_step_modem_send()
 
     #     # 17- Finish testing
     #     self._report("--- Secuencia de pruebas finalizada ---", "HEADER")
@@ -224,7 +224,7 @@ class TestRunner:
         final_message = message_template.format(self.step_counter)
         self._report(final_message, "INFO")
 
-    def _test_step_enable_battery(self):
+    def _test_step_connect_battery(self):
         """Step 1: Connect the battery (REL4 ON) to power the DUT. """
         self._start_step("step_connect_battery")
         relay_id = self.config.relay_num_battery
@@ -239,7 +239,7 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al conectar la batería: {e}", "FAIL")
 
-    def _test_step_enable_vin(self):
+    def _test_step_apply_vin(self):
         """Step 2: Power the device from Vin (REL3 ON). """
         self._start_step("step_connect_battery")
         relay_id = self.config.relay_num_vin_power
@@ -254,11 +254,11 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al activar Vin: {e}", "FAIL")
 
-    def _test_step_get_board_info(self):
+    def _test_step_check_initial_status(self):
         """Step 3: Checks DUT initial status."""
         self._start_step("step_check_initial_status")
 
-        response = self.rs485_controller.get_board_info()
+        response = self.rs485_controller.check_initial_status()
 
         if response and len(response) > 5:
             serial = response.get("serial", "Desconocido")
@@ -270,9 +270,9 @@ class TestRunner:
         else:
             self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL", response)
 
-    def _test_step_measure_ina3221(self):
+    def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
-        self._start_step("step_measure_ina3221")
+        self._start_step("step_measure_active_power")
 
         try:
             meter_cfg = self.config.ina3221_config
@@ -296,9 +296,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al medir INA3221: {e}", "FAIL")
 
-    def _test_step_check_tampers(self):
+    def _test_step_test_tampers(self):
         """Step 5: Check tampering inputs."""
-        self._start_step("step_check_tampers")
+        self._start_step("step_test_tampers")
 
         def test_tamper_combination(relay1_state, relay2_state, expected1, expected2):
             """Helper para probar combinación de relés de tamper."""
@@ -333,9 +333,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al verificar los relés de tamper: {e}", "FAIL")
 
-    def _test_step_check_board_relay(self):
+    def _test_step_test_onboard_relay(self):
         """Step 6: Check board relay with REL1 off and reading tamper in1."""
-        self._start_step("step_check_board_relay")
+        self._start_step("step_test_onboard_relay")
 
         try:
             relay_id = self.config.relay_num_tamper_1
@@ -353,7 +353,7 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al verificar el relé de la placa: {e}", "FAIL")
 
-    def _test_step_disable_battery(self):
+    def _test_step_disconnect_battery(self):
         """Step 7: Disconnect the battery (REL4 OFF)."""
         self._start_step("step_disconnect_battery")
         relay_id = self.config.relay_num_battery
@@ -368,9 +368,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al desconectar la batería: {e}", "FAIL")
 
-    def _test_step_enable_3v7(self):
+    def _test_step_simulate_battery(self):
         """Step 8: Enable 3v7 with uA meter."""
-        self._start_step("step_enable_3v7")
+        self._start_step("step_simulate_battery")
 
         try:
             # Cargar toda la configuración necesaria al principio
@@ -388,7 +388,7 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al activar 3v7: {e}", "FAIL")
 
-    def _test_step_disable_vin(self):
+    def _test_step_disconnect_vin(self):
         """Step 9: Disconnect Vin (REL3 OFF)."""
         self._start_step("step_disconnect_vin")
         relay_id = self.config.relay_num_vin_power
@@ -403,9 +403,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al desactivar Vin: {e}", "FAIL")
 
-    def _test_step_get_status(self, expected_status):
+    def _test_step_check_board_status(self, expected_status):
         """Step 10: GetStatus command to check device status."""
-        self._start_step("step_get_status")
+        self._start_step("step_check_board_status")
 
         try:
             response = self.rs485_controller.send_command(DutCommands.GET_SERIAL)
@@ -416,9 +416,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al obtener el estado: {e}", "FAIL")
 
-    def _test_step_send_low_power(self):
+    def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
-        self._start_step("step_send_low_power")
+        self._start_step("step_set_low_power_mode")
 
         try:
             response = self.rs485_controller.send_command(DutCommands.SET_LOW_POWER)
@@ -429,9 +429,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al enviar comando de bajo consumo: {e}", "FAIL")
 
-    def _test_step_measure_low_current(self):
+    def _test_step_measure_sleep_current(self):
         """Step 12: Measure low current with uA meter."""
-        self._start_step("step_measure_low_current")
+        self._start_step("step_measure_sleep_current")
 
         try:
             # Cargar toda la configuración necesaria al principio
@@ -459,9 +459,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al medir corriente en bajo consumo: {e}", "FAIL")
 
-    def _test_step_wait_normal_mode(self):
+    def _test_step_wakeup_from_sleep(self):
         """Step 13: Wait for the device to return to normal mode."""
-        self._start_step("step_wait_normal_mode")
+        self._start_step("step_wakeup_from_sleep")
 
         try:
             # Esperar un tiempo razonable para que el dispositivo vuelva a modo normal
@@ -477,9 +477,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al esperar modo normal: {e}", "FAIL")
 
-    def _test_step_send_uA_current(self):
+    def _test_step_send_current_result(self):
         """Step 14: Send uA current value to DUT."""
-        self._start_step("step_send_uA_current")
+        self._start_step("step_send_current_result")
 
         try:
             # Cargar toda la configuración necesaria al principio
@@ -508,9 +508,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al enviar corriente uA: {e}", "FAIL")
 
-    def _test_step_get_barcode_and_serial(self):
+    def _test_step_get_barcode(self):
         """Step 15: Get barcode and serial number from the DUT."""
-        self._start_step("step_get_barcode_and_serial")
+        self._start_step("step_get_barcode")
 
         # TODO: Leer del lector de código de barras y guardar en el DUT
 
@@ -531,9 +531,9 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al obtener S/N y código de barras: {e}", "FAIL")
 
-    def _test_step_force_send_modem_json(self):
+    def _test_step_modem_send(self):
         """Step 16: Force sending modem JSON data."""
-        self._start_step("step_force_send_modem_json")
+        self._start_step("step_modem_send")
 
         try:
             response = self.rs485_controller.send_command(DutCommands.FORCE_MODEM_SEND)
