@@ -68,7 +68,7 @@ graph TD
 
 ## Comandos CLI
 
-### GET_STATUS
+### STATUS
 - Respuesta
 ```JSON
 {
@@ -76,6 +76,7 @@ graph TD
   "power_source": "VIN",
   "vin_voltage_v": 12.1,
   "battery_voltage_v": 4.15,
+  "modem_voltage_v": 4.0,
   "onboard_relay_state": "OFF",
   "tamper_states": {
     "tamper_1": "CLOSED",
