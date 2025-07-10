@@ -120,3 +120,32 @@ logging:
   # Nivel de detalle del log: DEBUG, INFO, WARNING, ERROR
   level: "INFO"
   file_path: "./logs/"
+
+# ---------------------------------------------------------------------
+# G - Comportamiento del procedimiento de test
+# ----------------------------------------------------------------------
+test_procedure:
+  stop_on_fail: false
+    # Número de intentos para cada paso crítico
+#    max_attempts: 3
+    # Tiempo máximo de espera entre reintentos (en segundos)
+#    retry_delay_s: 5
+
+    # Configuración de tiempo de espera para cada paso
+#    step_timeouts:
+#        connect_battery: 10
+#        apply_vin: 5
+#        check_initial_status: 15
+#        measure_active_power: 10
+#        test_tampers: 20
+#        test_onboard_relay: 15
+#        disconnect_battery: 5
+#        enable_ua_meter: 10
+#        disconnect_vin: 5
+#        check_status_on_ua: 15
+#        set_low_power_mode: 10
+#        measure_sleep_current: 20
+#        wakeup_from_sleep: 30
+#        send_current_result: 10
+#        get_barcode: 15
+#        modem_send: 10

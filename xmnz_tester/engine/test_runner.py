@@ -123,6 +123,8 @@ class TestRunner:
         """Itera sobre la secuencia de claves y ejecuta el método correspondiente."""
         self._report("--- Iniciando secuencia de pruebas ---", "HEADER", step_id="sequence_start")
 
+        stop_on_first_fail = self.config.stop_on_fail
+
         for step_key in TEST_SEQUENCE:
             if self.stop_event.is_set():
                 self._report("Test detenido por el usuario.", "FAIL", step_id=f"_{step_key}")
@@ -138,65 +140,9 @@ class TestRunner:
 
             method_to_call()
 
-            if self.test_result.overall_status == "FAIL":
+            if self.test_result.overall_status == "FAIL" and stop_on_first_fail:
                 self._report("La secuencia se detuvo debido a un fallo.", "INFO", step_id="sequence_fail")
                 break
-
-    # def _run_test_steps(self):
-    #     """Define y ejecuta la secuencia de pruebas una por una."""
-    #     self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
-
-    #     # Test procedure:
-    #     # 1- Connect the battery (REL4 ON). DUT start autotesting
-    #     self._test_step_connect_battery()
-
-    #     # 2- Power the device from Vin (REL3 ON)
-    #     self._test_step_apply_vin()
-
-    #     # 3- By rs485, check status=plugged, get imei, icc, i2c sensors...
-    #     self._test_step_check_initial_status()
-
-    #     # 4- Measure INA3221 both channels
-    #     self._test_step_measure_active_power() # TODO: ¿Abstraer INA3221 a un método genérico?
-
-    #     # 5- Test tampering inputs
-    #     self._test_step_test_tampers()
-
-    #     # 6- Test board relay (with REL1 off and reading tamper in1)
-    #     self._test_step_test_onboard_relay()
-
-    #     # 7- Disconnect the battery (REL4 OFF)
-    #     self._test_step_disconnect_battery()
-
-    #     # 8- Enable 3v7 with uA
-    #     self._test_step_simulate_battery()
-
-    #     # 9- Disconnect Vin (REL3 OFF)
-    #     self._test_step_disconnect_vin()
-
-    #     # 10- GetStatus: stored
-    #     self._test_step_check_board_status("STATUS=2")
-
-    #     # 11- Send the board to LowPower
-    #     self._test_step_set_low_power_mode()
-
-    #     # 12- Measure low current with uA
-    #     self._test_step_measure_sleep_current()
-
-    #     # 13- Wait to normal mode
-    #     self._test_step_wakeup_from_sleep()
-
-    #     # 14- Send uA current value to DUT
-    #     self._test_step_send_current_result()
-
-    #     # 15- Get barcode and serial number
-    #     self._test_step_get_barcode()
-
-    #     # 16- Force sending modem json
-    #     self._test_step_modem_send()
-
-    #     # 17- Finish testing
-    #     self._report("--- Secuencia de pruebas finalizada ---", "HEADER")
 
     def _send_results_to_api(self):
         """Crea el cliente API y envía los resultados."""

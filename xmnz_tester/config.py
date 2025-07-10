@@ -1,6 +1,7 @@
 import yaml
 from pathlib import Path
 
+# TODO: ¿Gestionar defaults en outro lado?
 class ConfigManager:
     """
     Clase Singleton que carga, gestiona y proporciona acceso a la configuración
@@ -68,7 +69,7 @@ class ConfigManager:
     def rs485_baud_rate(self) -> int: return self.rs485_config.get("baud_rate", 115200)
 
     @property
-    def relay_serial_number(self) -> str: return self.relay_config.get("serial_number", None)
+    def relay_serial_number(self) -> str: return self.relay_config.get("serial_number", "UNKNOWN_RELAY")
 
 
     # --- Propiedades de mapeo de recursos detalladas ---
@@ -114,3 +115,8 @@ class ConfigManager:
     def api_endpoint(self) -> str: return self.api_config.get("endpoint_url")
     @property
     def api_key(self) -> str: return self.api_config.get("key")
+
+    # --- Propiedades del procedimiento de test ---
+    @property
+    def stop_on_fail(self) -> bool:
+        return self._config.get("test_procedure", {}).get("stop_on_fail", True)
