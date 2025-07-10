@@ -50,8 +50,8 @@ resource_mapping:
   relay_map:
     connect_tamper_1: 1   # Conecta GND a TAMP1 para simular tamper
     connect_tamper_2: 2   # Conecta GND a TAMP2 para simular tamper
-    apply_vin_power: 1    # Conecta 12V a VIN para alimentar desde fuente externa
-    connect_battery: 2    # Conecta la batería a la entrada de batería del DUT
+#    apply_vin_power: 1    # Conecta 12V a VIN para alimentar desde fuente externa
+#    connect_battery: 2    # Conecta la batería a la entrada de batería del DUT
 
   # Asigna nombres lógicos a los canales del INA3221
   ina3221_channel_map:
@@ -102,7 +102,7 @@ ui_messages:
   step_wakeup_from_sleep: "Paso {}: Esperando vuelta a modo normal"
   step_send_current_result: "Paso {}: Enviando resultado de consumo al DUT"
   step_get_barcode: "Paso {}: Obteniendo barcode y número de serie"
-  step_force_modem_send: "Paso {}: Forzando envío de JSON del módem"
+  step_modem_send: "Paso {}: Forzando envío de JSON del módem"
 
 # --------------------------------------------------------------------
 # E - Configuración del servidor y API
