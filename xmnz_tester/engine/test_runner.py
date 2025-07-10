@@ -8,6 +8,7 @@ from xmnz_tester.hal.ina3221 import PowerMeterINA3221
 from xmnz_tester.dut_commands import DutCommands
 from xmnz_tester.models.test_result import TestResult, TestStepResult
 from xmnz_tester.services.api_client import ApiClient
+from .sequence_definition import TEST_SEQUENCE
 
 class TestRunner:
     """
@@ -128,60 +129,85 @@ class TestRunner:
             self._report("Fallo al sincronizar resultados con la plataforma.", "FAIL")
 
     def _run_test_steps(self):
-        """Define y ejecuta la secuencia de pruebas una por una."""
+        """Itera sobre la secuencia de claves y ejecuta el método correspondiente."""
         self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
-        # Test procedure:
-        # 1- Connect the battery (REL4 ON). DUT start autotesting
-        self._test_step_enable_battery()
+        for step_key in TEST_SEQUENCE:
+            if self.stop_event and self.stop_event.is_set():
+                self._report("Test detenido por el usuario.", "FAIL")
+                break
 
-        # 2- Power the device from Vin (REL3 ON)
-        self._test_step_enable_vin()
+            # Construimos el nombre del método a partir de la clave
+            method_name = f"_{step_key}"
 
-        # 3- By rs485, check status=plugged, get imei, icc, i2c sensors...
-        self._test_step_get_board_info()
+            try:
+                method_to_call = getattr(self, method_name)
+            except AttributeError:
+                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL")
+                break
 
-        # 4- Measure INA3221 both channels
-        self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
+            # Llamamos al método del paso
+            method_to_call()
 
-        # 5- Test tampering inputs
-        self._test_step_check_tampers()
+            if self.test_result.overall_status == "FAIL":
+                self._report("La secuencia se detuvo debido a un fallo.", "INFO")
+                break
 
-        # 6- Test board relay (with REL1 off and reading tamper in1)
-        self._test_step_check_board_relay()
+    # def _run_test_steps(self):
+    #     """Define y ejecuta la secuencia de pruebas una por una."""
+    #     self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
-        # 7- Disconnect the battery (REL4 OFF)
-        self._test_step_disable_battery()
+    #     # Test procedure:
+    #     # 1- Connect the battery (REL4 ON). DUT start autotesting
+    #     self._test_step_enable_battery()
 
-        # 8- Enable 3v7 with uA
-        self._test_step_enable_3v7()
+    #     # 2- Power the device from Vin (REL3 ON)
+    #     self._test_step_enable_vin()
 
-        # 9- Disconnect Vin (REL3 OFF)
-        self._test_step_disable_vin()
+    #     # 3- By rs485, check status=plugged, get imei, icc, i2c sensors...
+    #     self._test_step_get_board_info()
 
-        # 10- GetStatus: stored
-        self._test_step_get_status("STATUS=2")
+    #     # 4- Measure INA3221 both channels
+    #     self._test_step_measure_ina3221() # TODO: ¿Abstraer INA3221 a un método genérico?
 
-        # 11- Send the board to LowPower
-        self._test_step_send_low_power()
+    #     # 5- Test tampering inputs
+    #     self._test_step_check_tampers()
 
-        # 12- Measure low current with uA
-        self._test_step_measure_low_current()
+    #     # 6- Test board relay (with REL1 off and reading tamper in1)
+    #     self._test_step_check_board_relay()
 
-        # 13- Wait to normal mode
-        self._test_step_wait_normal_mode()
+    #     # 7- Disconnect the battery (REL4 OFF)
+    #     self._test_step_disable_battery()
 
-        # 14- Send uA current value to DUT
-        self._test_step_send_uA_current()
+    #     # 8- Enable 3v7 with uA
+    #     self._test_step_enable_3v7()
 
-        # 15- Get barcode and serial number
-        self._test_step_get_barcode_and_serial()
+    #     # 9- Disconnect Vin (REL3 OFF)
+    #     self._test_step_disable_vin()
 
-        # 16- Force sending modem json
-        self._test_step_force_send_modem_json()
+    #     # 10- GetStatus: stored
+    #     self._test_step_get_status("STATUS=2")
 
-        # 17- Finish testing
-        self._report("--- Secuencia de pruebas finalizada ---", "HEADER")
+    #     # 11- Send the board to LowPower
+    #     self._test_step_send_low_power()
+
+    #     # 12- Measure low current with uA
+    #     self._test_step_measure_low_current()
+
+    #     # 13- Wait to normal mode
+    #     self._test_step_wait_normal_mode()
+
+    #     # 14- Send uA current value to DUT
+    #     self._test_step_send_uA_current()
+
+    #     # 15- Get barcode and serial number
+    #     self._test_step_get_barcode_and_serial()
+
+    #     # 16- Force sending modem json
+    #     self._test_step_force_send_modem_json()
+
+    #     # 17- Finish testing
+    #     self._report("--- Secuencia de pruebas finalizada ---", "HEADER")
 
     def _start_step(self, message_key: str):
         """
