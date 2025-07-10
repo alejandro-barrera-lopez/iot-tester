@@ -66,7 +66,8 @@ class MainWindow:
     def _build_gui_definitions(self):
         """Construye la lista de pasos para la GUI a partir de la secuencia."""
         definitions = []
-        for i, step_key in enumerate(TEST_SEQUENCE):
+        for i, step_info in enumerate(TEST_SEQUENCE):
+            step_key = step_info['key']
             message_template = self.config.ui_messages.get(step_key, step_key)
             clean_name = message_template.replace("Paso {}: ", "")
             method_id = f"_{step_key}"
@@ -136,7 +137,7 @@ class MainWindow:
             self.log_message(message)
             if step_id in self.step_widgets:
                 self.step_widgets[step_id].set_status(status)
-        self.root.after(0, update_task)
+        self.root.after(0, lambda: update_task())
 
     def on_start_stop_button_click(self):
         """Gestiona el clic en el botón principal, ya sea para iniciar o detener."""
@@ -187,4 +188,4 @@ class MainWindow:
             else:
                 self.set_overall_status("FAIL", STATUS_COLORS["fail"])
             self.start_stop_button.configure(state="normal", text="INICIAR NUEVO TEST")
-        self.root.after(0, final_update)
+        self.root.after(0, lambda: final_update())
