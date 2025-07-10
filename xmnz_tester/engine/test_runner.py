@@ -2,6 +2,7 @@ import time
 import threading
 import statistics
 import json
+from pathlib import Path
 from .sequence_definition import TEST_SEQUENCE
 from ..config import ConfigManager
 from ..hal.relays import RelayController
@@ -78,6 +79,7 @@ class TestRunner:
             self._disconnect_all_hardware()
             self._report(f"Test finalizado. Resultado: {self.test_result.overall_status}", self.test_result.overall_status, step_id="final_summary")
 
+            self._log_result_locally()
             self._send_results_to_api()
 
             return self.test_result.overall_status
@@ -148,6 +150,37 @@ class TestRunner:
             if self.test_result.overall_status == "FAIL" and self.config.stop_on_fail:
                 self._report("La secuencia se detuvo debido a un fallo.", "INFO")
                 break
+
+    def _log_result_locally(self):
+        """
+        Guarda el objeto de resultado completo en un fichero JSON local.
+        """
+        log_dir = self.config.log_file_path
+        if not log_dir:
+            self._report("Ruta de logs no configurada. No se guardará el resultado local.", "FAIL", step_id="local_log")
+            return
+
+        try:
+            # 1. Asegurarse de que el directorio de logs existe
+            Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+            # 2. Crear un nombre de fichero único usando el S/N y la fecha/hora
+            sn = self.test_result.serial_number or "SN_UNKNOWN"
+            timestamp = self.test_result.start_time.strftime("%Y%m%d_%H%M%S")
+            file_name = f"{sn}_{timestamp}.json"
+            file_path = Path(log_dir) / file_name
+
+            # 3. Convertir el resultado a un string JSON (con formato para legibilidad)
+            json_data = json.dumps(self.test_result.to_dict(), indent=2, ensure_ascii=False)
+
+            # 4. Escribir en el fichero
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(json_data)
+
+            self._report(f"Resultado guardado localmente en: {file_path}", "INFO", step_id="local_log")
+
+        except Exception as e:
+            self._report(f"Error al guardar el log local: {e}", "FAIL", step_id="local_log")
 
     def _send_results_to_api(self):
         """Crea el cliente API y envía los resultados."""

@@ -47,6 +47,8 @@ class ConfigManager:
     def ui_messages(self) -> dict: return self._config.get("ui_messages", {})
     @property
     def api_config(self) -> dict: return self._config.get("api", {})
+    @property
+    def logging(self) -> dict: return self._config.get("logging", {})
 
     # --- Propiedades de hardware detalladas ---
     @property
@@ -120,3 +122,8 @@ class ConfigManager:
     @property
     def stop_on_fail(self) -> bool:
         return self._config.get("test_procedure", {}).get("stop_on_fail", True)
+
+    # --- Propiedades de logging ---
+    @property
+    def log_file_path(self) -> str:
+        return self.logging.get("log_file_path", "./logs/")
