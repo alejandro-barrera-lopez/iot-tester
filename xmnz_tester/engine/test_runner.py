@@ -135,7 +135,7 @@ class TestRunner:
             try:
                 method_to_call = getattr(self, method_name)
             except AttributeError:
-                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL", id=method_name)
+                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL", step_id=method_name)
                 break
 
             method_to_call()
