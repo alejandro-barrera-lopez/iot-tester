@@ -225,7 +225,7 @@ class TestRunner:
                             'voltage': voltage,
                             'current': current
                         }
-                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", json.dumps(details))
+                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", details=details)
                     else:
                         self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL")
 
