@@ -202,9 +202,9 @@ class TestRunner:
             iccid = response.get("iccid", "Desconocido")
             status = response.get("status", "Desconocido")
 
-            self._report(f"Comunicación OK. S/N: {serial}, IMEI: {imei}, ICCID: {iccid}, Estado: {status}", "PASS", response)
+            self._report(f"Comunicación OK. S/N: {serial}, IMEI: {imei}, ICCID: {iccid}, Estado: {status}", "PASS", step_id="check_initial_status")
         else:
-            self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL", response)
+            self._report("Fallo al leer información del dispositivo o respuesta inválida.", "FAIL", step_id="check_initial_status")
 
     def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -225,9 +225,9 @@ class TestRunner:
                             'voltage': voltage,
                             'current': current
                         }
-                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", details=details)
+                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", step_id="measure_active_power", details=details)
                     else:
-                        self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL")
+                        self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL", step_id="measure_active_power")
 
         except Exception as e:
             self._report(f"Error al medir INA3221: {e}", "FAIL")
@@ -372,9 +372,9 @@ class TestRunner:
         try:
             response = self.rs485_controller.send_command(DutCommands.SET_LOW_POWER)
             if response: # TODO: validar respuesta esperada
-                self._report("Dispositivo enviado a modo de bajo consumo -> PASS", "PASS", response)
+                self._report("Dispositivo enviado a modo de bajo consumo -> PASS", "PASS")
             else:
-                self._report("Fallo al enviar comando de bajo consumo -> FAIL", "FAIL", response)
+                self._report("Fallo al enviar comando de bajo consumo -> FAIL", "FAIL")
         except Exception as e:
             self._report(f"Error al enviar comando de bajo consumo: {e}", "FAIL")
 
