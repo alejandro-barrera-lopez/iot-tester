@@ -479,7 +479,8 @@ class TestRunner:
 
                 if avg_current is not None:
                     # Enviar el valor de corriente al DUT
-                    response = self.rs485_controller.send_command(DutCommands.SET_LAST_CURRENT, str(avg_current))
+                    command_to_send = f"{DutCommands.SET_LAST_CURRENT}={avg_current:.2f}"
+                    response = self.rs485_controller.send_command(command_to_send)
                     if response == "OK":
                         self._report(f"Corriente enviada al DUT: {avg_current} uA -> PASS", "PASS")
                     else:

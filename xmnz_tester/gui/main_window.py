@@ -76,7 +76,7 @@ class MainWindow:
 
     def _create_side_panel(self):
         """Crea el panel lateral con la lista de todos los pasos del test."""
-        self.side_panel = ctk.CTkScrollableFrame(self.root, label_text="Pasos del Test")
+        self.side_panel = ctk.CTkScrollableFrame(self.root, label_text="Pasos del test")
         self.side_panel.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
         for step_def in self.step_definitions:
