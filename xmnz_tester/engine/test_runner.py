@@ -120,28 +120,32 @@ class TestRunner:
             self.ina3221_meter.disconnect()
 
     def _run_test_steps(self):
-        """Itera sobre la secuencia de claves y ejecuta el método correspondiente."""
-        self._report("--- Iniciando secuencia de pruebas ---", "HEADER", step_id="sequence_start")
+        """Itera sobre la secuencia, extrae los argumentos y ejecuta el método."""
+        self._report("--- Iniciando secuencia de pruebas ---", "HEADER")
 
-        stop_on_first_fail = self.config.stop_on_fail
-
-        for step_key in TEST_SEQUENCE:
-            if self.stop_event.is_set():
-                self._report("Test detenido por el usuario.", "FAIL", step_id=f"_{step_key}")
+        for step_info in TEST_SEQUENCE:
+            if self.stop_event and self.stop_event.is_set():
+                self._report("Test detenido por el usuario.", "FAIL")
                 break
 
+            step_key = step_info['key']
             method_name = f"_{step_key}"
+
+            # Extraemos los argumentos del diccionario (con valores por defecto vacíos)
+            args = step_info.get('args', [])
+            kwargs = step_info.get('kwargs', {})
 
             try:
                 method_to_call = getattr(self, method_name)
             except AttributeError:
-                self._report(f"Error de implementación: No se encontró el método '{method_name}'", "FAIL", step_id=method_name)
+                self._report(f"Error: No se encontró el método '{method_name}'", "FAIL")
                 break
 
-            method_to_call()
+            # Llamamos al método pasando los argumentos desempaquetados
+            method_to_call(*args, **kwargs)
 
-            if self.test_result.overall_status == "FAIL" and stop_on_first_fail:
-                self._report("La secuencia se detuvo debido a un fallo.", "INFO", step_id="sequence_fail")
+            if self.test_result.overall_status == "FAIL":
+                self._report("La secuencia se detuvo debido a un fallo.", "INFO")
                 break
 
     def _send_results_to_api(self):
@@ -334,18 +338,20 @@ class TestRunner:
         except Exception as e:
             self._report(f"Error al desactivar Vin: {e}", "FAIL")
 
-    def _test_step_check_board_status(self, expected_status):
-        """Step 10: GetStatus command to check device status."""
+    def _test_step_check_board_status(self, expected_status: str):
+        """Step 10: GetStatus command to check if device status matches expected."""
         self._start_step("step_check_board_status")
 
         try:
-            response = self.rs485_controller.send_command(DutCommands.GET_SERIAL)
-            if response == expected_status:
-                self._report(f"Estado del dispositivo: {response} -> PASS", "PASS", response)
+            current_status = self.rs485_controller.send_command(DutCommands.GET_STATUS)
+
+            if current_status == expected_status:
+                self._report(f"Estado '{current_status}' es el esperado -> PASS", "PASS")
             else:
-                self._report("Fallo al obtener el estado del dispositivo -> FAIL", "FAIL", response)
+                self._report(f"Estado incorrecto. Esperado: '{expected_status}', Recibido: '{current_status}' -> FAIL", "FAIL")
+
         except Exception as e:
-            self._report(f"Error al obtener el estado: {e}", "FAIL")
+            self._report(f"Error al comprobar el estado del dispositivo: {e}", "FAIL")
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
