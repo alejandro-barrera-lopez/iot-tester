@@ -110,7 +110,7 @@ ui_messages:
 # --------------------------------------------------------------------
 api:
   endpoint_url: "http://home.inusualcom.com:8099/api/v1/test_results"
-  key: "SECRET_API_KEY_GOES_HERE"
+  key: "f7Kjk57hSfCgPNX9icUdfbb3DgHlcDu6"
   request_timeout_s: 10
 
 # --------------------------------------------------------------------
