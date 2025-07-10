@@ -1,6 +1,7 @@
 import time
 import threading
 import statistics
+from .sequence_definition import TEST_SEQUENCE
 from ..config import ConfigManager
 from ..hal.relays import RelayController
 from ..hal.rs485 import RS485Controller
@@ -9,7 +10,6 @@ from ..hal.ina3221 import PowerMeterINA3221
 from ..models.test_result import TestResult, TestStepResult
 from ..dut_commands import DutCommands
 from ..services.api_client import ApiClient
-from .sequence_definition import TEST_SEQUENCE
 
 class TestRunner:
     """
@@ -38,7 +38,7 @@ class TestRunner:
         self.ina3221_meter = None
 
     def _report(self, message: str, status: str = "INFO", step_id: str = None, details: dict = None):
-        """Metodo centralizado para enviar mensajes a la GUI y guardar el resultado del paso."""
+        """Metodo centralizado para enviar mensajes y guardar el resultado del paso."""
         # Si un paso falla, el estado general del test falla.
         if self.callback:
             self.callback(step_id, message, status)
@@ -64,20 +64,18 @@ class TestRunner:
         """
         Punto de entrada principal. Ejecuta la secuencia completa de tests.
         """
-        self.test_result = TestResult(station_id=self.config.station_id)
         self.step_counter = 0
+        self.test_result = TestResult(station_id=self.config.station_id)
 
         try:
             self._connect_all_hardware()
             self._run_test_steps()
-
         except Exception as e:
             self._report(f"ERROR CRÍTICO: {e}", "FAIL", step_id="critical_error")
-
         finally:
-            self._disconnect_all_hardware()
             self.test_result.finalize()
-            self._report(f"Test finalizado. Resultado general: {self.test_result.overall_status}", self.test_result.overall_status, step_id="final_summary")
+            self._disconnect_all_hardware()
+            self._report(f"Test finalizado. Resultado: {self.test_result.overall_status}", self.test_result.overall_status, step_id="final_summary")
 
             self._send_results_to_api()
 
@@ -126,7 +124,7 @@ class TestRunner:
         self._report("--- Iniciando secuencia de pruebas ---", "HEADER", step_id="sequence_start")
 
         for step_key in TEST_SEQUENCE:
-            if self.stop_event and self.stop_event.is_set():
+            if self.stop_event.is_set():
                 self._report("Test detenido por el usuario.", "FAIL", step_id=f"_{step_key}")
                 break
 
@@ -210,19 +208,6 @@ class TestRunner:
         else:
             # TODO: Implementar lógica de reintentos o manejo de errores
             self._report("Fallo al sincronizar resultados con la plataforma.", "FAIL", step_id="api_send")
-
-    def _start_step(self, message_key: str):
-        """
-        Incrementa el contador, formatea y reporta el mensaje de inicio de un paso.
-        """
-        self.step_counter += 1
-
-        messages = self.config.ui_messages
-
-        message_template = messages.get(message_key, f"Iniciando: {message_key}")
-
-        final_message = message_template.format(self.step_counter)
-        self._report(final_message, "INFO")
 
     def _test_step_connect_battery(self):
         """Step 1: Connect the battery (REL4 ON) to power the DUT. """
