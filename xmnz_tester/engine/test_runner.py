@@ -1,6 +1,7 @@
 import time
 import threading
 import statistics
+import json
 from .sequence_definition import TEST_SEQUENCE
 from ..config import ConfigManager
 from ..hal.relays import RelayController
@@ -224,7 +225,7 @@ class TestRunner:
                             'voltage': voltage,
                             'current': current
                         }
-                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", details)
+                        self._report(f"Canal {channel}: {voltage:.3f} V, {current:.3f} mA", "PASS", json.dumps(details))
                     else:
                         self._report(f"Fallo al leer el canal {channel} -> FAIL", "FAIL")
 
@@ -339,17 +340,28 @@ class TestRunner:
             self._report(f"Error al desactivar Vin: {e}", "FAIL")
 
     def _test_step_check_board_status(self, expected_status: str):
-        """Step 10: GetStatus command to check if device status matches expected."""
-        self._start_step("step_check_board_status")
+        """Step 10: Asks DUT for status, parses returned JSON and checks it meets the expected status."""
+        self._start_step("step_check_initial_status")
 
         try:
-            current_status = self.rs485_controller.send_command(DutCommands.GET_STATUS)
+            response_str = self.rs485_controller.send_command(DutCommands.GET_STATUS)
+
+            if not response_str:
+                self._report("No se recibió respuesta del GETSTATUS.", "FAIL")
+                return
+
+            # Parseamos la respuesta JSON a un diccionario de Python
+            status_data = json.loads(response_str)
+
+            current_status = status_data.get("device_state")
 
             if current_status == expected_status:
-                self._report(f"Estado '{current_status}' es el esperado -> PASS", "PASS")
+                self._report(f"Estado '{current_status}' es el esperado -> PASS", "PASS", details=status_data)
             else:
-                self._report(f"Estado incorrecto. Esperado: '{expected_status}', Recibido: '{current_status}' -> FAIL", "FAIL")
+                self._report(f"Estado incorrecto. Esperado: '{expected_status}', Recibido: '{current_status}' -> FAIL", "FAIL", details=status_data)
 
+        except json.JSONDecodeError:
+            self._report(f"Error: La respuesta no es un JSON válido: '{response_str}'", "FAIL")
         except Exception as e:
             self._report(f"Error al comprobar el estado del dispositivo: {e}", "FAIL")
 

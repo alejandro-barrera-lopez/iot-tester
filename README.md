@@ -65,3 +65,27 @@ graph TD
     style C fill:#512da8,stroke:#333,stroke-width:2px,color:#fff
     style D fill:#00796b,stroke:#333,stroke-width:2px,color:#fff
 ```
+
+## Comandos CLI
+
+### GET_STATUS
+- Respuesta
+```JSON
+{
+  "device_state": "PLUGGED",
+  "power_source": "VIN",
+  "vin_voltage_v": 12.1,
+  "battery_voltage_v": 4.15,
+  "onboard_relay_state": "OFF",
+  "tamper_states": {
+    "tamper_1": "CLOSED",
+    "tamper_2": "CLOSED"
+  },
+  "sensors_ok": {
+    "i2c": true,
+    "modem": true
+  },
+  "imei": "123456789012345",
+  "iccid": "8934012345678901234F"
+}
+```
