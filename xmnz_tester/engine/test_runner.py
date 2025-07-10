@@ -38,7 +38,7 @@ class TestRunner:
         self.ppk2_meter = None
         self.ina3221_meter = None
 
-    def _report(self, message: str, status: str = "INFO", step_id: str = None, details: dict = None):
+    def _report(self, message: str, status: str = "INFO", *, step_id: str = None, details: dict = None):
         """Metodo centralizado para enviar mensajes y guardar el resultado del paso."""
         # Si un paso falla, el estado general del test falla.
         if self.callback:
