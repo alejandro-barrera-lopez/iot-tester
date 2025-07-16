@@ -42,28 +42,32 @@ class RS485Controller:
 
     def send_command(self, command: str) -> List[str] | None:
         """
-        Envía un comando y lee todas las líneas de la respuesta hasta
-        encontrar el siguiente prompt ('#').
+        Envía un comando, filtra el eco y lee la respuesta multilínea
+        hasta encontrar el prompt ('#').
 
         Args:
-            command (str): El comando a enviar (ej. "GETDEVICEDATA").
+            command (str): El comando a enviar.
 
         Returns:
             List[str] | None: Una lista con las líneas de la respuesta,
-                              o None si no se recibe respuesta (timeout).
+                              o None si no se recibe respuesta completa.
         """
         if self.serial_conn is None or not self.serial_conn.is_open:
             raise ConnectionError("No conectado. Llama a 'connect()' primero.")
 
+        # Limpiar el buffer de entrada para descartar datos antiguos
+        self.serial_conn.reset_input_buffer()
+
         print(f"TX --> {command}")
         self.serial_conn.write(f"{command}\n".encode('utf-8'))
+        self.serial_conn.flush()
 
         response_lines = []
         while True:
             try:
                 line_bytes = self.serial_conn.readline()
-                if not line_bytes: # Timeout
-                    print("RX <-- (Timeout) No se recibió respuesta.")
+                if not line_bytes:
+                    print("RX <-- (Timeout) No se recibió respuesta completa antes del prompt.")
                     return None
 
                 line_str = line_bytes.decode('utf-8', errors='ignore').strip()
@@ -71,12 +75,13 @@ class RS485Controller:
                 if line_str.startswith('#'):
                     break
 
-                if line_str:
+                # Filtramos la línea de eco (comparando sin mayúsculas) y las líneas vacías
+                if line_str and line_str.lower() != command.lower():
                     response_lines.append(line_str)
 
-            except Exception as e:
+            except serial.SerialException as e:
                 print(f"Error durante la lectura del puerto serie: {e}")
-                break
+                return None
 
         print(f"RX <-- {response_lines}")
         return response_lines
