@@ -218,19 +218,11 @@ class TestRunner:
         """Step 3: Checks DUT initial status."""
         self._start_step("step_check_initial_status")
 
-        response_lines = self.rs485_controller.send_command(DutCommands.GET_STATUS)
+        status_data = self._get_dut_json_response(DutCommands.GET_STATUS)
 
-        if not response_lines:
-            self._report("No se recibió respuesta del DUT.", "FAIL")
-            return
-
-        try:
-            # Unir las líneas por si el JSON viene fragmentado y parsearlo
-            status_data = json.loads("".join(response_lines))
+        if status_data:
             self.test_result.serial_number = status_data.get("imei", "NOT_READ")
             self._report(f"Comunicación OK. Estado: {status_data.get('power_source')}", "PASS", details=status_data)
-        except json.JSONDecodeError:
-            self._report(f"Respuesta inválida (no es JSON): {response_lines}", "FAIL")
 
     def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -331,22 +323,12 @@ class TestRunner:
 
     def _test_step_check_board_status(self):
         """Step 10: Asks DUT for status, parses returned JSON and checks it meets the expected status."""
-        self._start_step("step_check_initial_status")
+        self._start_step("test_step_check_board_status")
 
-        response_lines = self.rs485_controller.send_command(DutCommands.GET_DEVICE_DATA)
+        status_data = self._get_dut_json_response(DutCommands.GET_DEVICE_DATA)
 
-        if not response_lines:
-            self._report("No se recibió respuesta del DUT.", "FAIL")
-            return
-
-        try:
-            # Unir las líneas por si el JSON viene fragmentado y parsearlo
-            status_data = json.loads("".join(response_lines))
-            self.test_result.serial_number = status_data.get("imei", "NOT_READ")
-            self._report(f"Comunicación OK. Estado: {status_data.get('power_source')}", "PASS", details=status_data)
-        except json.JSONDecodeError:
-            self._report(f"Respuesta inválida (no es JSON): {response_lines}", "FAIL")
-
+        if status_data:
+            self._report(f"Comunicación OK. Estado actual: {status_data.get('power_source')}", "PASS", details=status_data)
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
@@ -415,3 +397,30 @@ class TestRunner:
             self._report("Comando para forzar envío de módem enviado.", "PASS")
         else:
             self._report("Fallo al forzar el envío del módem.", "FAIL")
+
+# Auxiliary methods
+    def _get_dut_json_response(self, command: str) -> dict | None:
+        """
+        Metodo auxiliar para enviar un comando al DUT, esperar una respuesta
+        JSON, y parsearla.
+
+        Args:
+            command (str): El comando a enviar (de DutCommands).
+
+        Returns:
+            dict | None: Un diccionario con los datos si la respuesta es un JSON válido,
+                         o None si hay un error.
+        """
+        response_lines = self.rs485_controller.send_command(command)
+
+        if not response_lines:
+            self._report(f"No se recibió respuesta del DUT para el comando '{command}'.", "FAIL")
+            return None
+
+        try:
+            # Unir las líneas por si el JSON viene fragmentado
+            json_response = "".join(response_lines)
+            return json.loads(json_response)
+        except json.JSONDecodeError:
+            self._report(f"Respuesta inválida (no es JSON): {response_lines}", "FAIL")
+            return None
