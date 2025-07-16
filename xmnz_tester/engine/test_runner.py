@@ -377,26 +377,26 @@ class TestRunner:
         self._start_step("step_check_initial_status")
 
         try:
-            response_str = self.rs485_controller.send_command(DutCommands.GET_STATUS)
+            response_lines = self.rs485_controller.send_command(DutCommands.GET_DEVICE_DATA)
 
-            if not response_str:
-                self._report("No se recibió respuesta del GETSTATUS.", "FAIL")
+            if not response_lines:
+                self._report("No se recibió respuesta para GET_DEVICE_DATA.", "FAIL")
                 return
 
-            # Parseamos la respuesta JSON a un diccionario de Python
-            status_data = json.loads(response_str)
+            device_data = {}
+            for line in response_lines:
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    device_data[key.strip()] = value.strip()
 
-            current_status = status_data.get("device_state")
-
-            if current_status == expected_status:
-                self._report(f"Estado '{current_status}' es el esperado -> PASS", "PASS", details=status_data)
+            imei = device_data.get("IMEI", "")
+            if len(imei) == 15:
+                self._report(f"IMEI encontrado: {imei} -> PASS", "PASS", details=device_data)
             else:
-                self._report(f"Estado incorrecto. Esperado: '{expected_status}', Recibido: '{current_status}' -> FAIL", "FAIL", details=status_data)
+                self._report(f"IMEI no encontrado o con formato incorrecto -> FAIL", "FAIL", details=device_data)
 
-        except json.JSONDecodeError:
-            self._report(f"Error: La respuesta no es un JSON válido: '{response_str}'", "FAIL")
         except Exception as e:
-            self._report(f"Error al comprobar el estado del dispositivo: {e}", "FAIL")
+            self._report(f"Error al obtener los datos del dispositivo: {e}", "FAIL")
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""

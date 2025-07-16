@@ -5,7 +5,6 @@ from xmnz_tester.gui.main_window import MainWindow
 def launch_gui():
     """
     Lanza la interfaz gráfica de usuario (GUI) para el tester.
-    Esta función es un placeholder y debería ser implementada con una GUI real.
     """
     print("Lanzando GUI...")
     ctk.set_appearance_mode("system") # "System", "Light", "Dark"
@@ -16,7 +15,7 @@ def launch_gui():
     root.mainloop()
 
 if __name__ == "__main__":
-    print("--- Iniciando PoC con librería pyhid_usb_relay ---")
+    print("--- Starting Board Tester ---")
 
     try:
         config = ConfigManager()
