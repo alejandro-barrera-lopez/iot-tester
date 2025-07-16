@@ -4,7 +4,7 @@ class DutCommands:
     """
     # Comandos para obtener información
     GET_STATUS = "status" # STATUS -> STATUS=2 (1=INIT, 2=STORED, 3=PLUGGED, 4=MOVING)    (systemData.state)
-    GET_DATA = "getdevicedata"
+    GET_DEVICE_DATA = "getdevicedata"
     GET_SERIAL = "getserial" # GETSERIAL -> SERIAL=25070001
     # GET_IMEI = "GETIMEI" # GETIMEI -> IMEI=123456789012345
     # GET_ICCID = "GETICCID" # GETICCID -> ICCID=89014103211118510720

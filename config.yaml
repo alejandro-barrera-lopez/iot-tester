@@ -1,12 +1,11 @@
 # =================================================
 # FICHERO DE CONFIGURACIÓN PARA EL TESTER JIT AC
-# v1.1
+# v1.2 - Soporte para múltiples medidores
 # =================================================
 
 station:
   id: "PROD-JIG-01"
   app_title: "ICI JIT Tester"
-  # app_version: "1.1"
   app_resolution: "700x600"
 
 # --------------------------------------------------------------------
@@ -26,56 +25,57 @@ hardware:
     serial_number: ""
 
   power_meters:
-    # Medidor de alta precisión para bajo consumo (uA)
-    ua_meter_ppk2:
-      # type: "ppk2" # Opcional: para futura selección de drivers
-      # Opcional. Dejar vacío para conectar al primero que encuentre
-      serial_number: ""
-      # Voltaje a suministrar al DUT cuando se alimenta desde el PPK2
-      source_voltage_mv: 3700
+    # Configuración del medidor de bajo consumo
+    ua_meter:
+      # Tipo de medidor: "ppk2" o "blu_meter"
+      type: "blu_meter"
+
+      # Configuración específica para PPK2
+      ppk2:
+        serial_number: ""
+        source_voltage_mv: 3700
+
+      # Configuración específica para BLU-939
+      blu_meter:
+        serial_number: ""
+        source_voltage_mv: 3700
+        sample_rate_hz: 1000
+        measurement_samples: 100
 
     # Medidor multicanal para consumos en activo (mA)
     active_meter_ina3221:
-      # type: "ina3221" # Opcional: para futura selección de drivers
       i2c_bus: 1
       i2c_address: 0x40
       shunt_resistance_ohms: 0.1
 
 # --------------------------------------------------------------------
 # B - Mapeo de recursos
-# Asigna nombres lógicos a recursos físicos como los relés.
 # --------------------------------------------------------------------
 resource_mapping:
   # El nombre de la clave se usará en el código, el valor es el número de relé.
   relay_map:
     connect_tamper_1: 1   # Conecta GND a TAMP1 para simular tamper
     connect_tamper_2: 2   # Conecta GND a TAMP2 para simular tamper
-#    apply_vin_power: 1    # Conecta 12V a VIN para alimentar desde fuente externa
-#    connect_battery: 2    # Conecta la batería a la entrada de batería del DUT
+    apply_vin_power: 3    # Conecta 12V a VIN para alimentar desde fuente externa
+    connect_battery: 4    # Conecta la batería a la entrada de batería del DUT
 
   # Asigna nombres lógicos a los canales del INA3221
   ina3221_channel_map:
-    vin_current: 1        # Mide la corriente que entra desde la fuente de 12V
-    battery_charge_current: 2 # Mide la corriente de carga hacia la batería
-    # channel_3: 3        # Canal de repuesto
+    vin_current: 1
+    battery_charge_current: 2
 
 # --------------------------------------------------------------------
 # C - Umbrales y parámetros del test
-# Límites para determinar si una prueba es PASS o FAIL.
 # --------------------------------------------------------------------
 test_thresholds:
-  # Corriente máxima permitida en modo de bajo consumo (medida con PPK2)
   sleep_current_max_ua: 50.0
-  # Límites para la corriente de entrada de 12V (medida con INA3221)
   vin_current_min_ma: 10.0
   vin_current_max_ma: 200.0
-  # Límites para la corriente de carga de la batería (medida con INA3221)
   battery_charge_min_ma: 50.0
   battery_charge_max_ma: 300.0
 
 # --------------------------------------------------------------------
 # D - Mensajes de la interfaz
-# Textos que se mostrarán en la GUI para cada paso del procedimiento.
 # --------------------------------------------------------------------
 ui_messages:
   # Fase 1: Chequeos iniciales
