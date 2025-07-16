@@ -29,7 +29,7 @@ class RS485Controller:
         try:
             self.serial_conn = serial.Serial(self.port, self.baud_rate, timeout=self.timeout)
             print(f"Conectado al dispositivo RS485 en {self.port}.")
-            self.wait_for_prompt()
+            # self.wait_for_prompt()
         except serial.SerialException as e:
             print(f"Error al conectar a RS485: {e}")
             raise

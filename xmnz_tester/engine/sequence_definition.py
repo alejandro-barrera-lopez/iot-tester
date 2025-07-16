@@ -8,7 +8,7 @@ TEST_SEQUENCE = [
     {'key': 'test_step_disconnect_battery'},
     {'key': 'test_step_simulate_battery'},  # TODO: ¿Rename?
     {'key': 'test_step_disconnect_vin'},
-    {'key': 'test_step_check_board_status', 'args': ["STORED"]},
+    {'key': 'test_step_check_board_status'},
     {'key': 'test_step_set_low_power_mode'},
     {'key': 'test_step_measure_sleep_current'},
     {'key': 'test_step_wakeup_from_sleep'},
