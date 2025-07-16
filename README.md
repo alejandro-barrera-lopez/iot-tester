@@ -72,11 +72,9 @@ graph TD
 - Respuesta
 ```JSON
 {
-  "device_state": "PLUGGED",
   "power_source": "VIN",
-  "vin_voltage_v": 12.1,
-  "battery_voltage_v": 4.15,
-  "modem_voltage_v": 4.0,
+  "vin_voltage_v": 12.15,
+  "battery_voltage_v": 4.18,
   "onboard_relay_state": "OFF",
   "tamper_states": {
     "tamper_1": "CLOSED",
@@ -86,7 +84,12 @@ graph TD
     "i2c": true,
     "modem": true
   },
+  "temperature_c": 25.5,
+  "humidity_rh": 45.8,
   "imei": "123456789012345",
   "iccid": "8934012345678901234F"
 }
 ```
+
+### OTA
+Conectarse a LTE e esperar actualización.
