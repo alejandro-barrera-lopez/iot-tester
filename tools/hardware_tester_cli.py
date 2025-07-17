@@ -73,9 +73,7 @@ def main():
             port=config.rs485_port,
             baud_rate=config.rs485_baud_rate
         )
-        if not rs485_controller.connect():
-             raise ConnectionError("No se pudo conectar al puerto serie del DUT.")
-        print(f"Puerto serie {config.rs485_config['port']} conectado.")
+        rs485_controller.connect()
 
     except Exception as e:
         print(f"\nERROR CRÍTICO durante la inicialización: {e}")
