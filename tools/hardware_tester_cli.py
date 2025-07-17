@@ -1,4 +1,3 @@
-import time
 import json
 from xmnz_tester.config import ConfigManager
 from xmnz_tester.hal.relays import RelayController
@@ -70,7 +69,10 @@ def main():
         ina_meter.connect()
 
         print("\nConectando al puerto serie...")
-        rs485_controller = RS485Controller(**config.rs485_config)
+        rs485_controller = RS485Controller(
+            port=config.rs485_port,
+            baud_rate=config.rs485_baud_rate
+        )
         if not rs485_controller.connect():
              raise ConnectionError("No se pudo conectar al puerto serie del DUT.")
         print(f"Puerto serie {config.rs485_config['port']} conectado.")
