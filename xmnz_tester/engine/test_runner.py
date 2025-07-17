@@ -38,6 +38,7 @@ class TestRunner:
 
         self.dut_info: Optional[DutInfo] = None
         self.dut_status: Optional[DutStatus] = None
+        self.test_result: Optional[TestResult] = None
 
         # Controladores del HAL
         self.relay_controller: RelayController = None
@@ -51,9 +52,11 @@ class TestRunner:
             self.callback(step_id, message, status)
 
         if self.test_result:
+            step_name = step_id or f"Paso {self.step_counter}"
+
             step = TestStepResult(
-                step_name=f"Paso {self.step_counter}",
-                status=status,
+                step_name=step_name,
+                status=status.upper(),
                 message=message,
                 details=details or {}
             )
