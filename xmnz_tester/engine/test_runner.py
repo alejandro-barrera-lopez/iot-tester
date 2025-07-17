@@ -123,6 +123,13 @@ class TestRunner:
             self._report(f"Error conectando PPK2: {e}", "FAIL")
             raise
 
+        try:
+            self.ina3221_meter.connect()
+            self._report("Medidor INA3221 conectado.", "PASS")
+        except Exception as e:
+            self._report(f"Error conectando INA3221: {e}", "FAIL")
+            raise
+
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
         self._report("--- Desconectando del hardware ---", "HEADER", step_id="disconnect_hardware")
