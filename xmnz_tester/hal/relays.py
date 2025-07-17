@@ -58,18 +58,21 @@ class RelayController:
 
         print(f"Estableciendo relé #{relay_num} en {'ON' if state else 'OFF'}")
         self.relay_device.set_state(relay_num, state)
+        time.sleep(0.05)
 
     def all_on(self):
         """Enciende todos los relés de la placa."""
         if self.relay_device:
             for i in range(1, self.num_relays + 1):
                 self.relay_device.set_state(i, True)
+                time.sleep(0.05)
 
     def all_off(self):
         """Apaga todos los relés de la placa."""
         if self.relay_device:
             for i in range(1, self.num_relays + 1):
                 self.relay_device.set_state(i, False)
+                time.sleep(0.05)
 
     def get_relay_state(self, relay_num: int) -> bool:
         """
