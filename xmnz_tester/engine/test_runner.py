@@ -231,9 +231,9 @@ class TestRunner:
 
         if device_status_dict:
             self.dut_info = DutInfo.from_dict(device_status_dict)
-            self._report(f"Obtenido DeviceStatus.", "PASS", details=device_status_dict)
+            self._report(f"Obtenido DeviceInfo. S/N: {self.dut_info.device_serial}", "PASS", details=device_status_dict)
         else:
-            self._report("Fallo al obtener DeviceStatus del DUT.", "FAIL")
+            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
 
     def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -339,8 +339,8 @@ class TestRunner:
         device_info_dict = self._get_dut_json_response(DutCommands.GET_STATUS)
 
         if device_info_dict:
-            self.dut_info = DutInfo.from_dict(device_info_dict)
-            self._report(f"Obtenido DeviceInfo. S/N: {self.dut_info.device_serial}, ")
+            self.dut_status = DutStatus.from_dict(device_info_dict)
+            self._report(f"Obtenido DeviceInfo.", "PASS", details=device_info_dict)
         else:
             self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
 
