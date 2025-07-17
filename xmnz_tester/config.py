@@ -117,6 +117,9 @@ class ConfigManager:
     def station_id(self) -> str: return self.station.get("id", "UNKNOWN_STATION")
 
     @property
+    def api_timeout(self) -> int: return self.api_config.get("timeout", 5)
+
+    @property
     def api_endpoint(self) -> str:
         endpoint = os.getenv("API_ENDPOINT")
         if not endpoint:

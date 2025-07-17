@@ -6,16 +6,18 @@ class ApiClient:
     """
     Cliente para enviar los resultados del test a la API central.
     """
-    def __init__(self, api_config: dict):
+    def __init__(self, endpoint_url: str = None, api_key: str = None, timeout_s: int = 10):
         """
         Inicializa el cliente con la configuración de la API.
 
         Args:
-            api_config (dict): Un diccionario con 'endpoint_url', 'key', y 'timeout_s'.
+            endpoint_url (str): URL del endpoint de la API donde se enviarán los resultados.
+            api_key (str): Clave de API para autenticación.
+            timeout_s (int): Tiempo máximo de espera para la respuesta de la API en segundos.
         """
-        self.endpoint_url = api_config.get("endpoint_url")
-        self.api_key = api_config.get("key")
-        self.timeout = api_config.get("request_timeout_s", 10)
+        self.endpoint_url = endpoint_url
+        self.api_key = api_key
+        self.timeout = timeout_s
 
     def send_test_result(self, test_result: TestResult) -> bool:
         """

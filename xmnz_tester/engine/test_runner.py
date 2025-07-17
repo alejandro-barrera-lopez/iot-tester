@@ -187,7 +187,7 @@ class TestRunner:
 
     def _send_results_to_api(self):
         """Crea el cliente API y envía los resultados."""
-        api_client = ApiClient(self.config.api_config)
+        api_client = ApiClient(self.config.api_endpoint, self.config.api_key, self.config.api_timeout)
 
         if api_client.send_test_result(self.test_result):
             self._report("Resultados sincronizados con la plataforma.", "INFO", step_id="api_send")
@@ -340,9 +340,9 @@ class TestRunner:
 
         if device_status_dict:
             self.dut_info = DutInfo.from_dict(device_status_dict)
-            self._report(f"Obtenido DeviceInfo. SN: {self.dut_info.device_serial}", "PASS", details=device_status_dict)
+            self._report(f"Obtenido DeviceStatus. SN: {self.dut_info.device_serial}", "PASS", details=device_status_dict)
         else:
-            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
+            self._report("Fallo al obtener DeviceStatus del DUT.", "FAIL")
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
