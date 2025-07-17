@@ -227,13 +227,13 @@ class TestRunner:
         """Step 3: Checks DUT initial status."""
         self._start_step("step_check_initial_status")
 
-        device_info_dict = self._get_dut_json_response(DutCommands.GET_STATUS)
+        device_status_dict = self._get_dut_json_response(DutCommands.GET_DEVICE_DATA)
 
-        if device_info_dict:
-            self.dut_info = DutInfo.from_dict(device_info_dict)
-            self._report(f"Obtenido DeviceInfo. S/N: {self.dut_info.device_serial}, ")
+        if device_status_dict:
+            self.dut_info = DutInfo.from_dict(device_status_dict)
+            self._report(f"Obtenido DeviceStatus.", "PASS", details=device_status_dict)
         else:
-            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
+            self._report("Fallo al obtener DeviceStatus del DUT.", "FAIL")
 
     def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -336,13 +336,13 @@ class TestRunner:
         """Step 10: Asks DUT for status, parses returned JSON and checks it meets the expected status."""
         self._start_step("test_step_check_board_status")
 
-        device_status_dict = self._get_dut_json_response(DutCommands.GET_DEVICE_DATA)
+        device_info_dict = self._get_dut_json_response(DutCommands.GET_STATUS)
 
-        if device_status_dict:
-            self.dut_info = DutInfo.from_dict(device_status_dict)
-            self._report(f"Obtenido DeviceStatus. SN: {self.dut_info.device_serial}", "PASS", details=device_status_dict)
+        if device_info_dict:
+            self.dut_info = DutInfo.from_dict(device_info_dict)
+            self._report(f"Obtenido DeviceInfo. S/N: {self.dut_info.device_serial}, ")
         else:
-            self._report("Fallo al obtener DeviceStatus del DUT.", "FAIL")
+            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
