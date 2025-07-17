@@ -100,27 +100,35 @@ class PPK2Meter(CurrentMeterInterface):
         except Exception as e:
             self.logger.error(f"Error al desconectar del medidor PPK2: {e}")
 
-    def set_source_enabled(self, enabled: bool) -> bool:
-        """Habilita o deshabilita la fuente de alimentación."""
-        if not self.is_connected or not self.device:
-            self.logger.error("Dispositivo no conectado.")
+    def set_source_enabled(self, enabled: bool):
+        """Activa o desactiva la salida de VOUT."""
+        if not self.is_connected:
+            logging.error("PPK2 no conectado.")
+            return
+        try:
+            # Habilitar la medición es un prerrequisito para usar la fuente
+            self.device.enable_source_measurement()
+            self.device.set_source_enabled(enabled)
+            state = "activada" if enabled else "desactivada"
+            logging.info(f"Fuente de alimentación del PPK2 {state}.")
+        except Exception as e:
+            logging.error(f"Error al cambiar el estado de la fuente del PPK2: {e}")
+
+    def set_voltage(self, millivolts: int) -> bool:
+        """Configura la tensión de salida del PPK2 y activa la fuente."""
+        if not self.is_connected:
+            logging.error("PPK2 no conectado. No se puede configurar el voltaje.")
             return False
 
         try:
-            if enabled:
-                self.device.set_source_voltage(self.source_voltage_mv)
-                self.device.use_source_meter()
-                self.device.toggle_DUT_power("ON")
-                self.is_source_enabled = True
-                self.logger.info(f"Fuente habilitada a {self.source_voltage_mv}mV.")
-            else:
-                if self.is_source_enabled:  # Evitar enviar comando si ya está apagado
-                    self.device.toggle_DUT_power("OFF")
-                    self.is_source_enabled = False
-                    self.logger.info("Fuente deshabilitada.")
+            self.device.set_source_voltage(millivolts)
+
+            self.set_source_enabled(True)
+
+            logging.info(f"PPK2 suministrando {millivolts} mV.")
             return True
         except Exception as e:
-            self.logger.error(f"Error al configurar la fuente del PPK2: {e}")
+            logging.error(f"Error al configurar el voltaje del PPK2: {e}")
             return False
 
     def get_current_measurement(self, samples: int = 100, sample_rate_hz: int = 1000) -> Optional[float]:

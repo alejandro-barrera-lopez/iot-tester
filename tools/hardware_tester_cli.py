@@ -24,6 +24,7 @@ def print_menu():
     print("\nComandos de medidor de potencia (uA meter):")
     print("  power on                  - Habilitar salida de 3.7V del medidor uA")
     print("  power off                 - Deshabilitar salida de 3.7V")
+    print("  setvoltage ua             - Configurar y activar y voltaje de salida manual")
     print("  measure ua                - Realizar una medición de corriente (uA)")
     print("\nComandos de medidor de activo (INA3221):")
     print("  measure ma <canal>        - Medir un canal del INA3221 (ej: 'measure ma 1')")
@@ -162,6 +163,21 @@ def main():
                     ua_meter.set_source_enabled(True)
                 elif parts[1] == "off":
                     ua_meter.set_source_enabled(False)
+
+            elif command == "setvoltage": # <-- NUEVO BLOQUE
+                if len(parts) < 2:
+                    print("Error: Debes especificar el voltaje en milivoltios. Ej: setvoltage 3300")
+                    continue
+                try:
+                    mv = int(parts[1])
+                    print(f"Configurando voltaje de salida a {mv} mV...")
+                    success = ua_meter.set_voltage(mv)
+                    if success:
+                        print("Voltaje configurado y salida activada.")
+                    else:
+                        print("Fallo al configurar el voltaje. Revisa los logs para más detalles.")
+                except ValueError:
+                    print("Error: El voltaje debe ser un número entero (ej: 3300).")
 
             elif command == "measure" and parts[1] == "ua":
                 print("Midiendo corriente (puede tardar un momento)...")

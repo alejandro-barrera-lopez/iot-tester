@@ -4,7 +4,7 @@ Define el contrato que deben implementar todos los medidores.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -39,12 +39,12 @@ class CurrentMeterInterface(ABC):
         Returns:
             True si la conexión fue exitosa, False en caso contrario
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def disconnect(self) -> None:
         """Desconecta del medidor."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def set_source_enabled(self, enabled: bool) -> bool:
@@ -57,7 +57,12 @@ class CurrentMeterInterface(ABC):
         Returns:
             True si fue exitoso, False en caso contrario
         """
-        pass
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_voltage(self, millivolts: int):
+        """Configura y activa la tensión de salida del medidor."""
+        raise NotImplementedError
 
     @abstractmethod
     def get_current_measurement(self, samples: int = 100, sample_rate_hz: int = 1000) -> Optional[float]:
@@ -71,7 +76,7 @@ class CurrentMeterInterface(ABC):
         Returns:
             Corriente promedio en microamperios (μA) o None si hay error
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_continuous_measurements(self, duration_s: float, sample_rate_hz: int = 1000) -> List[Tuple[float, float]]:
@@ -85,7 +90,7 @@ class CurrentMeterInterface(ABC):
         Returns:
             Lista de tuplas (tiempo, corriente_ua)
         """
-        pass
+        raise NotImplementedError
 
     # Métodos comunes que pueden ser heredados
     def __enter__(self):

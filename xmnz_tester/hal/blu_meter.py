@@ -115,40 +115,43 @@ class BLUMeter(CurrentMeterInterface):
             self.logger.error(f"Error al desconectar del medidor BLU939: {e}")
 
     def set_source_enabled(self, enabled: bool) -> bool:
-        """
-        Habilita o deshabilita la fuente de alimentación.
+        """Activa o desactiva la alimentación del DUT."""
+        if not self.is_connected:
+            logging.error("BLU-Meter no conectado.")
+            return False
+        try:
+            state = "ON" if enabled else "OFF"
+            self.device.toggle_DUT_power(state)
+            log_state = "activada" if enabled else "desactivada"
+            logging.info(f"Fuente de alimentación del BLU-Meter {log_state}.")
+            return True
+        except Exception as e:
+            logging.error(f"Error al cambiar el estado de la fuente del BLU-Meter: {e}")
+            return False
 
-        Args:
-            enabled: True para habilitar, False para deshabilitar
-
-        Returns:
-            True si fue exitoso, False en caso contrario
+    def set_voltage(self, millivolts: int) -> bool:
         """
-        if not self.is_connected or not self.device:
-            self.logger.error("Dispositivo no conectado")
+        Configura la tensión de salida del BLU-Meter y activa la fuente.
+        """
+        if not self.is_connected:
+            logging.error("BLU-Meter no conectado. No se puede configurar el voltaje.")
             return False
 
         try:
-            if enabled:
-                # Configurar voltaje de fuente (BLU939 usa mV)
-                self.device.set_source_voltage(self.source_voltage_mv)
+            # 1. Configurar el modo del medidor
+            self.device.get_modifiers()
+            self.device.use_source_meter()
 
-                # Habilitar alimentación del DUT
-                self.device.toggle_DUT_power("ON")
+            # 2. Establecer el nivel de voltaje deseado
+            self.device.set_source_voltage(millivolts)
 
-                self.is_source_enabled = True
-                self.logger.info(f"Fuente habilitada a {self.source_voltage_mv}mV")
-                return True
-            else:
-                # Deshabilitar alimentación del DUT
-                self.device.toggle_DUT_power("OFF")
+            # 3. Activar la salida de alimentación
+            self.set_source_enabled(True)
 
-                self.is_source_enabled = False
-                self.logger.info("Fuente deshabilitada")
-                return True
-
+            logging.info(f"BLU-Meter suministrando {millivolts} mV.")
+            return True
         except Exception as e:
-            self.logger.error(f"Error al configurar fuente: {e}")
+            logging.error(f"Error al configurar el voltaje del BLU-Meter: {e}")
             return False
 
     def get_current_measurement(self, samples: int = 100, sample_rate_hz: int = 1000) -> Optional[float]:
