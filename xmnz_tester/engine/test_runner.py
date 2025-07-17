@@ -21,7 +21,14 @@ class TestRunner:
     Orquesta la secuencia completa de tests, interactuando con la capa HAL
     y reportando los resultados a través de una función callback.
     """
-    def __init__(self, config_manager: ConfigManager, gui_callback: callable, stop_event: threading.Event):
+    def __init__(self,
+            config_manager: ConfigManager,
+            relay_controller: RelayController,
+            serial_controller: RS485Controller,
+            ua_meter: CurrentMeterInterface,
+            ma_meter: PowerMeterINA3221,
+            gui_callback: callable,
+            stop_event: threading.Event):
         """
         Inicializa el motor de test.
 
@@ -36,15 +43,15 @@ class TestRunner:
         self.test_result = None
         self.step_counter = 0
 
+        # Controladores del HAL
+        self.relay_controller = relay_controller
+        self.serial_controller = serial_controller
+        self.ua_meter = ua_meter
+        self.ina3221_meter = ma_meter
+
         self.dut_info: Optional[DutInfo] = None
         self.dut_status: Optional[DutStatus] = None
         self.test_result: Optional[TestResult] = None
-
-        # Controladores del HAL
-        self.relay_controller: RelayController = None
-        self.rs485_controller: RS485Controller = None
-        self.ppk2_meter: CurrentMeterInterface = None
-        self.ina3221_meter: PowerMeterINA3221 = None
 
     def _report(self, message: str, status: str = "INFO", *, step_id: str = None, details: dict = None):
         """Metodo centralizado para enviar mensajes y guardar el resultado del paso."""
@@ -93,42 +100,37 @@ class TestRunner:
             return self.test_result.overall_status
 
     def _connect_all_hardware(self):
-        """Inicializa y conecta todos los controladores del HAL."""
-        self._report("--- Conectando al hardware ---", "INFO", step_id="connect_hardware")
+        """Intenta conectar todos los dispositivos de hardware inyectados."""
+        self._report("Conectando dispositivos de hardware...", "INFO")
 
-        # Conectar relés
-        self.relay_controller = RelayController(
-            num_relays=len(self.config.relay_map),
-            serial_number=self.config.relay_serial_number
-        )
-        self.relay_controller.connect()
+        try:
+            self.relay_controller.connect()
+            self._report("Controlador de relés conectado.", "PASS")
+        except Exception as e:
+            self._report(f"Error conectando relés: {e}", "FAIL")
+            raise  # Relanzamos para detener la ejecución
 
-        # Conectar RS485
-        self.rs485_controller = RS485Controller(
-            port=self.config.rs485_port,
-            baud_rate=self.config.rs485_baud_rate
-        )
-        self.rs485_controller.connect()
+        try:
+            self.serial_controller.connect()
+            self._report("Controlador RS485 conectado.", "PASS")
+        except Exception as e:
+            self._report(f"Error conectando RS485: {e}", "FAIL")
+            raise
 
-        # Conectar medidor uA
-        ua_meter_config = self.config.hardware.get("power_meters", {}).get("ua_meter", {})
-        self.ua_meter = MeterFactory.create_ua_meter(ua_meter_config)
-        if self.ua_meter and self.ua_meter.connect():
-            self._report(f"Medidor de uA ({self.ua_meter.get_info()['type']}) conectado.", "INFO")
-        else:
-            raise ConnectionError("No se pudo conectar al medidor de uA.")
-
-        # Conectar INA3221
-        self.ina3221_meter = PowerMeterINA3221(**self.config.ina3221_config)
-        self.ina3221_meter.connect()
+        try:
+            self.ua_meter.connect()
+            self._report("PPK2 conectado.", "PASS")
+        except Exception as e:
+            self._report(f"Error conectando PPK2: {e}", "FAIL")
+            raise
 
     def _disconnect_all_hardware(self):
         """Desconecta de forma segura todos los controladores del HAL."""
         self._report("--- Desconectando del hardware ---", "HEADER", step_id="disconnect_hardware")
         if self.relay_controller:
             self.relay_controller.disconnect()
-        if self.rs485_controller:
-            self.rs485_controller.disconnect()
+        if self.serial_controller:
+            self.serial_controller.disconnect()
         if self.ua_meter:
             self.ua_meter.disconnect()
         if self.ina3221_meter:
@@ -349,7 +351,7 @@ class TestRunner:
         self._start_step("step_set_low_power_mode")
 
         try:
-            response = self.rs485_controller.send_command(DutCommands.SET_LOW_POWER)
+            response = self.serial_controller.send_command(DutCommands.SET_LOW_POWER)
             if response: # TODO: validar respuesta esperada
                 self._report("Dispositivo enviado a modo de bajo consumo -> PASS", "PASS")
             else:
@@ -379,7 +381,7 @@ class TestRunner:
 
         self._report("Esperando que el DUT salga de bajo consumo...", "INFO")
         time.sleep(35)
-        self.rs485_controller.wait_for_prompt()
+        self.serial_controller.wait_for_prompt()
         self._report("DUT ha vuelto a modo normal.", "PASS")
 
     def _test_step_send_current_result(self):
@@ -388,7 +390,7 @@ class TestRunner:
 
         last_current = self.test_result.steps[-2].details.get('measured_ua', 0.0)
         command = f"{DutCommands.SET_LAST_CURRENT}={last_current:.2f}"
-        response = self.rs485_controller.send_command(command)
+        response = self.serial_controller.send_command(command)
 
         if response and "OK" in response[0]:
             self._report(f"Resultado de consumo ({last_current:.2f} uA) enviado al DUT.", "PASS")
@@ -406,7 +408,7 @@ class TestRunner:
         """Step 16: Force sending modem JSON data."""
         self._start_step("step_modem_send")
 
-        response = self.rs485_controller.send_command(DutCommands.FORCE_MODEM_SEND)
+        response = self.serial_controller.send_command(DutCommands.FORCE_MODEM_SEND)
         if response and "OK" in response[0]:
             self._report("Comando para forzar envío de módem enviado.", "PASS")
         else:
@@ -425,7 +427,7 @@ class TestRunner:
             dict | None: Un diccionario con los datos si la respuesta es un JSON válido,
                          o None si hay un error.
         """
-        response_lines = self.rs485_controller.send_command(command)
+        response_lines = self.serial_controller.send_command(command)
 
         if not response_lines:
             self._report(f"No se recibió respuesta del DUT para el comando '{command}'.", "FAIL")

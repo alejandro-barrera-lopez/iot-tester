@@ -3,6 +3,10 @@ import threading
 from ..engine.sequence_definition import TEST_SEQUENCE
 from ..engine.test_runner import TestRunner
 from ..config import ConfigManager
+from ..hal.meter_factory import MeterFactory
+from ..hal.rs485 import RS485Controller
+from ..hal.relays import RelayController
+from ..hal.ina3221 import PowerMeterINA3221
 
 STATUS_COLORS = {
     "default": ("#3498DB", "#2980B9"),  # Azul
@@ -161,8 +165,38 @@ class MainWindow:
         self.set_overall_status("PROBANDO", STATUS_COLORS["testing"])
         self.start_stop_button.configure(text="DETENER TEST")
 
+        # Instancias de controladores
+        try:
+            self.log_message("--- Inicializando controladores de hardware ---")
+            relay_ctrl = RelayController(
+                num_relays=len(self.config.relay_map),
+                serial_number=self.config.relay_serial_number
+            )
+
+            rs485_ctrl = RS485Controller(
+                port=self.config.rs485_port,
+                baud_rate=self.config.rs485_baud_rate
+            )
+
+            ua_meter_config = self.config.hardware.get("power_meters", {}).get("ua_meter", {})
+            ua_meter = MeterFactory.create_ua_meter(ua_meter_config)
+            if not ua_meter:
+                raise ValueError("Configuración del medidor de uA no encontrada o inválida.")
+
+            ina3221_meter = PowerMeterINA3221(**self.config.ina3221_config)
+
+        except Exception as e:
+            # Si algo falla aquí, no podemos ni empezar el test
+            self.log_message(f"Error al inicializar hardware: {e}")
+            self.start_stop_button.configure(state="normal", text="INICIAR TEST")
+            return
+
         runner = TestRunner(
             config_manager=self.config,
+            relay_controller=relay_ctrl,
+            serial_controller=rs485_ctrl,
+            ua_meter=ua_meter,
+            ma_meter=ina3221_meter,
             gui_callback=self.update_gui_callback,
             stop_event=self.stop_event
         )
