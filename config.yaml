@@ -109,8 +109,6 @@ ui_messages:
 # Datos para reportar los resultados a la plataforma central.
 # --------------------------------------------------------------------
 api:
-  endpoint_url: "http://home.inusualcom.com:8099/api/v1/test_results"
-  key: "f7Kjk57hSfCgPNX9icUdfbb3DgHlcDu6"
   request_timeout_s: 10
 
 # --------------------------------------------------------------------

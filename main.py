@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from dotenv import load_dotenv
 from xmnz_tester.config import ConfigManager
 from xmnz_tester.gui.main_window import MainWindow
 
@@ -16,6 +17,7 @@ def launch_gui():
 
 if __name__ == "__main__":
     print("--- Starting Board Tester ---")
+    load_dotenv()
 
     try:
         config = ConfigManager()

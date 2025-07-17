@@ -1,5 +1,7 @@
 import yaml
 from pathlib import Path
+from typing import Dict, Any, List
+import os
 
 # TODO: ¿Gestionar defaults en outro lado?
 class ConfigManager:
@@ -113,10 +115,20 @@ class ConfigManager:
     def app_resolution(self) -> str: return self.station.get("app_resolution", "800x600")
     @property
     def station_id(self) -> str: return self.station.get("id", "UNKNOWN_STATION")
+
     @property
-    def api_endpoint(self) -> str: return self.api_config.get("endpoint_url")
+    def api_endpoint(self) -> str:
+        endpoint = os.getenv("API_ENDPOINT")
+        if not endpoint:
+            raise ValueError("La variable de entorno 'API_ENDPOINT' no está definida.")
+        return endpoint
+
     @property
-    def api_key(self) -> str: return self.api_config.get("key")
+    def api_key(self) -> str:
+        key = os.getenv("API_KEY")
+        if not key:
+            raise ValueError("La variable de entorno 'API_KEY' no está definida.")
+        return key
 
     # --- Propiedades del procedimiento de test ---
     @property

@@ -5,3 +5,4 @@ pi-ina219
 ppk2-api
 requests~=2.32.4
 PyYAML~=6.0.2
+python-dotenv
