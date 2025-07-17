@@ -52,7 +52,7 @@ class PowerMeterINA3221:
             Un diccionario con 'bus_voltage', 'current_mA', y 'power_mW', o None si hay error.
         """
         if not 1 <= channel_number <= len(self.channels):
-            raise ValueError(f"El número de canal debe ser entre 1 y {len(self.channels)}.")
+            raise ValueError(f"El número de canal ({channel_number}) debe ser entre 1 y {len(self.channels)}.")
 
         sensor_channel = self.channels[channel_number - 1]
 
