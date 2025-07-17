@@ -82,18 +82,33 @@ def main():
             # --- Lógica de relés ---
             elif command == "relay":
                 action = parts[1]
-                # Permitir usar tanto el número como el nombre del relé
-                relay_id_str = parts[2]
-                relay_num = RELAY_NAME_MAP.get(relay_id_str, relay_id_str)
-                relay_num = int(relay_num)
+                target = parts[2]
 
-                if action == "on":
-                    relay_controller.set_relay(relay_num, True)
-                elif action == "off":
-                    relay_controller.set_relay(relay_num, False)
-                elif action == "state":
-                    state = relay_controller.get_relay_state(relay_num)
-                    print(f"Resultado: El relé {relay_num} está {'ON' if state else 'OFF'}.")
+                if target == "all":
+                    if action == "on":
+                        print("Encendiendo todos los relés...")
+                        relay_controller.all_on()
+                    elif action == "off":
+                        print("Apagando todos los relés...")
+                        relay_controller.all_off()
+                    else:
+                        print("Error: La acción 'state' no es compatible con 'all'.")
+                else:
+                    try:
+                        relay_num = RELAY_NAME_MAP.get(target, target)
+                        relay_num = int(relay_num)
+
+                        if action == "on":
+                            relay_controller.set_relay(relay_num, True)
+                            print(f"Relé {relay_num} ({target}) encendido.")
+                        elif action == "off":
+                            relay_controller.set_relay(relay_num, False)
+                            print(f"Relé {relay_num} ({target}) apagado.")
+                        elif action == "state":
+                            state = relay_controller.get_relay_state(relay_num)
+                            print(f"Resultado: El relé {relay_num} ({target}) está {'ON' if state else 'OFF'}.")
+                    except (ValueError, KeyError):
+                        print(f"Error: Identificador de relé '{target}' no válido.")
 
             elif command == "all_off":
                 print("Apagando todos los relés...")
