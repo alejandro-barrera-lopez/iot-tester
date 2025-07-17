@@ -24,8 +24,8 @@ def print_menu():
     print("  measure ma <canal>        - Medir un canal del INA3221 (ej: 'measure ma 1')")
     print("\nOtros:")
     print("  status                    - Mostrar estado de los dispositivos")
-    print("  menu                      - Mostrar este menú")
-    print("  quit                      - Salir de la aplicación")
+    print("  help                      - Mostrar este menú")
+    print("  exit                      - Salir de la aplicación")
     print("---------------------------------")
 
 def main():
@@ -73,10 +73,10 @@ def main():
 
             command = parts[0]
 
-            if command == "quit":
+            if command == "quit" or command == "exit":
                 break
 
-            elif command == "menu":
+            elif command == "menu" or command == "help":
                 print_menu()
 
             # --- Lógica de relés ---
@@ -133,10 +133,10 @@ def main():
 
 
             else:
-                print(f"Comando '{command}' desconocido. Escribe 'menu' para ver las opciones.")
+                print(f"Comando '{command}' desconocido. Escribe 'help' para ver las opciones.")
 
         except (IndexError, ValueError) as e:
-            print(f"Error en el comando: {e}. Revisa la sintaxis. Escribe 'menu' para ayuda.")
+            print(f"Error en el comando: {e}. Revisa la sintaxis. Escribe 'help' para ayuda.")
         except Exception as e:
             print(f"Ha ocurrido un error inesperado: {e}")
 
