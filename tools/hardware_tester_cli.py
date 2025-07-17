@@ -1,8 +1,10 @@
 import time
+import json
 from xmnz_tester.config import ConfigManager
 from xmnz_tester.hal.relays import RelayController
 from xmnz_tester.hal.ina3221 import PowerMeterINA3221
 from xmnz_tester.hal.meter_factory import MeterFactory
+from xmnz_tester.hal.rs485 import RS485Controller
 
 # Mapeo de nombres de relés a sus números para facilitar el uso
 # Se cargará desde la configuración
@@ -12,15 +14,19 @@ def print_menu():
     """Imprime el menú de comandos disponibles."""
     print("\n--- Menú de test de hardware ---")
     print("Comandos de Relé:")
-    print("  relay on <num_o_nombre>   - Encender un relé (ej: 'relay on 1' o 'relay on connect_battery')")
-    print("  relay off <num_o_nombre>  - Apagar un relé")
-    print("  relay state <num_o_nombre> - Consultar estado de un relé")
+    print("  relay on <id>   - Encender un relé (id: num, nombre o 'all')")
+    print("                                     (ej. 'relay on connect_battery')")
+    print("  relay off <id>  - Apagar un relé (id: num, nombre o 'all')")
+    print("  relay state <num/nombre> - Consultar estado de un relé")
     print("  all_off                   - Apagar todos los relés")
-    print("\nComandos de Medidor de Potencia (uA Meter):")
+    print("\nComandos de puerto serie (al DUT):")
+    print("  serial <comando>            - Enviar comando al DUT y ver la respuesta")
+    print("                                (ej: serial GETSTATUS)")
+    print("\nComandos de medidor de potencia (uA meter):")
     print("  power on                  - Habilitar salida de 3.7V del medidor uA")
     print("  power off                 - Deshabilitar salida de 3.7V")
     print("  measure ua                - Realizar una medición de corriente (uA)")
-    print("\nComandos de Medidor de Activo (INA3221):")
+    print("\nComandos de medidor de activo (INA3221):")
     print("  measure ma <canal>        - Medir un canal del INA3221 (ej: 'measure ma 1')")
     print("\nOtros:")
     print("  status                    - Mostrar estado de los dispositivos")
@@ -30,12 +36,18 @@ def print_menu():
 
 def main():
     """Función principal del tester interactivo."""
-    print("--- Inicializando Herramienta de Test de Hardware ---")
+    print("--- Inicializando herramienta de test de hardware ---")
 
-    # --- 1. Cargar configuración e inicializar hardware ---
+    # --- Variables de controladores ---
+    relay_controller = None
+    ua_meter = None
+    ina_meter = None
+    rs485_controller = None
+
+    # --- Cargar configuración e inicializar hardware ---
     try:
         config = ConfigManager()
-        # Invertimos el mapa para poder buscar por nombre
+
         global RELAY_NAME_MAP
         RELAY_NAME_MAP = config.relay_map
 
@@ -57,12 +69,18 @@ def main():
         ina_meter = PowerMeterINA3221(**config.ina3221_config)
         ina_meter.connect()
 
+        print("\nConectando al puerto serie...")
+        rs485_controller = RS485Controller(**config.rs485_config)
+        if not rs485_controller.connect():
+             raise ConnectionError("No se pudo conectar al puerto serie del DUT.")
+        print(f"Puerto serie {config.rs485_config['port']} conectado.")
+
     except Exception as e:
         print(f"\nERROR CRÍTICO durante la inicialización: {e}")
         print("Asegúrate de que el hardware está conectado y 'config.yaml' es correcto.")
         return
 
-    # --- 2. Bucle principal de comandos ---
+    # --- Bucle principal de comandos ---
     print_menu()
     while True:
         try:
@@ -113,6 +131,30 @@ def main():
             elif command == "all_off":
                 print("Apagando todos los relés...")
                 relay_controller.all_off()
+            # --- Lógica de puerto serie ---
+            elif command == "serial":
+                if len(parts) < 2:
+                    print("Error: Debes especificar un comando a enviar. Ej: 'serial GETSTATUS'")
+                    continue
+
+                dut_command = " ".join(parts[1:])
+
+                response_lines = rs485_controller.send_command(dut_command)
+
+                if response_lines is not None:
+                    if len(response_lines) == 1:
+                        try:
+                            json_response = json.loads(response_lines[0])
+                            print("Respuesta (JSON formateado):")
+                            print(json.dumps(json_response, indent=2))
+                        except json.JSONDecodeError:
+                            print("Respuesta (texto):")
+                            print(response_lines[0])
+                        print("Respuesta (multilínea):")
+                        for line in response_lines:
+                            print(line)
+                else:
+                    print("No se obtuvo una respuesta completa del dispositivo.")
 
             # --- Lógica del medidor de uA ---
             elif command == "power":
@@ -156,11 +198,12 @@ def main():
             print(f"Ha ocurrido un error inesperado: {e}")
 
 
-    # --- 3. Desconexión segura ---
+    # --- Desconexión segura ---
     print("\n--- Desconectando hardware de forma segura ---")
-    relay_controller.disconnect()
-    ua_meter.disconnect()
-    ina_meter.disconnect()
+    if relay_controller: relay_controller.disconnect()
+    if ua_meter: ua_meter.disconnect()
+    if ina_meter: ina_meter.disconnect()
+    if rs485_controller: rs485_controller.disconnect()
     print("Chau!")
 
 
