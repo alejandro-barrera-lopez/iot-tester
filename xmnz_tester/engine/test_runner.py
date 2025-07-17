@@ -7,7 +7,6 @@ from .sequence_definition import TEST_SEQUENCE
 from ..config import ConfigManager
 from ..hal.relays import RelayController
 from ..hal.rs485 import RS485Controller
-from ..hal.meter_factory import MeterFactory
 from ..hal.meter_interface import CurrentMeterInterface
 from ..hal.ina3221 import PowerMeterINA3221
 from ..models.test_result import TestResult, TestStepResult
@@ -255,41 +254,83 @@ class TestRunner:
         self._report(f"Carga Batería: {bat_data['current_mA']:.2f} mA", "PASS", details=bat_data)
 
     def _test_step_test_tampers(self):
-        """Step 5: Check tampering inputs."""
+        """
+        Paso 5: Comprueba las entradas de tamper del DUT.
+
+        Acciona los relés conectados a las entradas de tamper y verifica que el
+        DUT reporta el estado correcto (OPEN/CLOSED) para cada combinación.
+        """
         self._start_step("step_test_tampers")
 
-        def test_tamper_combination(relay1_state, relay2_state, expected1, expected2):
-            """Helper para probar combinación de relés de tamper."""
-            self.relay_controller.set_relay(relay_tamper_1, relay1_state)
-            self.relay_controller.set_relay(relay_tamper_2, relay2_state)
-            time.sleep(1)  # Esperar para estabilizar
+        # Asumiendo que relé ON == tamper CLOSED y relé OFF == tamper OPEN.
+        RELAY_ON_STATE = True
+        RELAY_OFF_STATE = False
+        TAMPER_CLOSED_STR = "CLOSED"
+        TAMPER_OPEN_STR = "OPEN"
 
-            actual1 = self.relay_controller.get_relay_state(relay_tamper_1)
-            actual2 = self.relay_controller.get_relay_state(relay_tamper_2)
+        overall_success = True  # Para seguir el resultado final del paso
 
-            if actual1 == expected1 and actual2 == expected2:
+        def check_combination(relay1_on: bool, relay2_on: bool, expected_tamp1: str, expected_tamp2: str):
+            """Función helper para probar una combinación y reportar el resultado."""
+            nonlocal overall_success
+
+            # Configurar los relés
+            relay1_action = "ON" if relay1_on else "OFF"
+            relay2_action = "ON" if relay2_on else "OFF"
+            self._report(f"Configurando relés: T1={relay1_action}, T2={relay2_action}", "INFO")
+
+            self.relay_controller.set_relay(relay_tamper_1, RELAY_ON_STATE if relay1_on else RELAY_OFF_STATE)
+            self.relay_controller.set_relay(relay_tamper_2, RELAY_ON_STATE if relay2_on else RELAY_OFF_STATE)
+
+            time.sleep(0.5)
+
+            if not self._update_dut_status():
+                overall_success = False
+                return
+
+            # Comprobar el resultado
+            actual_tamp1 = self.dut_status.tamper_states.get("tamper_1", "ERROR")
+            actual_tamp2 = self.dut_status.tamper_states.get("tamper_2", "ERROR")
+
+            if actual_tamp1 == expected_tamp1 and actual_tamp2 == expected_tamp2:
                 self._report(
-                    f"Relés: [{relay1_state}, {relay2_state}] -> Estado esperado: [{expected1}, {expected2}] -> PASS",
+                    f"Combinación [{relay1_action}, {relay2_action}] -> OK (Obtenido: [{actual_tamp1}, {actual_tamp2}])",
                     "PASS"
                 )
             else:
                 self._report(
-                    f"Relés: [{relay1_state}, {relay2_state}] -> Esperado: [{expected1}, {expected2}], "
-                    f"Obtenido: [{actual1}, {actual2}] -> FAIL", "FAIL"
+                    f"Combinación [{relay1_action}, {relay2_action}] -> FALLO. Esperado: [{expected_tamp1}, {expected_tamp2}], "
+                    f"Obtenido: [{actual_tamp1}, {actual_tamp2}]",
+                    "FAIL"
                 )
+                overall_success = False
 
         try:
-            relay_tamper_1 = self.config.relay_num_tamper_1
-            relay_tamper_2 = self.config.relay_num_tamper_2
+            relay_tamper_1 = self.config.relay_map["tamper_1"]
+            relay_tamper_2 = self.config.relay_map["tamper_2"]
 
-            # Probar todas las combinaciones
-            test_tamper_combination(False, False, False, False)
-            test_tamper_combination(True, False, True, False)
-            test_tamper_combination(False, True, False, True)
-            test_tamper_combination(True, True, True, True)
+            # Probar las 4 combinaciones lógicas
+            self._report("--- Iniciando secuencia de prueba de tampers ---", "INFO")
 
+            check_combination(False, False, TAMPER_OPEN_STR, TAMPER_OPEN_STR)
+            check_combination(True, False, TAMPER_CLOSED_STR, TAMPER_OPEN_STR)
+            check_combination(False, True, TAMPER_OPEN_STR, TAMPER_CLOSED_STR)
+            check_combination(True, True, TAMPER_CLOSED_STR, TAMPER_CLOSED_STR)
+
+            self._report("--- Secuencia de prueba de tampers finalizada ---", "INFO")
+
+            self.relay_controller.set_relay(relay_tamper_1, RELAY_OFF_STATE)
+            self.relay_controller.set_relay(relay_tamper_2, RELAY_OFF_STATE)
+
+        except KeyError as e:
+            self._report(f"Error de configuración: No se encontró la clave de relé {e} en config.yaml", "FAIL")
+            overall_success = False
         except Exception as e:
-            self._report(f"Error al verificar los relés de tamper: {e}", "FAIL")
+            self._report(f"Error inesperado durante el test de tampers: {e}", "FAIL")
+            overall_success = False
+
+        if not overall_success:
+            self._report("El paso de verificación de tampers ha fallado.", "FAIL", step_id="step_test_tampers")
 
     def _test_step_test_onboard_relay(self):
         """Step 6: Check board relay with REL1 off and reading tamper in1."""
