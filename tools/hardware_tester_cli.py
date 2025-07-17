@@ -184,9 +184,11 @@ def main():
                     print("Error: No se pudo leer el canal.")
 
             elif command == "status":
-                print("\n--- Estado Actual del Hardware ---")
+                print("\n--- Estado actual del hardware ---")
                 print("Medidor uA:", ua_meter.get_info())
-                print("Relés: (No implementado, usa 'relay state <n>')")
+                for relay_id, relay_name in RELAY_NAME_MAP.items():
+                    state = relay_controller.get_relay_state(relay_id)
+                    print(f"Relé {relay_id} ({RELAY_NAME_MAP.get(relay_id, relay_id)}): {'ON' if state else 'OFF'}")
 
 
             else:
