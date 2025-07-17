@@ -2,6 +2,7 @@ import time
 import threading
 import json
 from pathlib import Path
+from typing import Optional
 from .sequence_definition import TEST_SEQUENCE
 from ..config import ConfigManager
 from ..hal.relays import RelayController
@@ -10,6 +11,8 @@ from ..hal.meter_factory import MeterFactory
 from ..hal.meter_interface import CurrentMeterInterface
 from ..hal.ina3221 import PowerMeterINA3221
 from ..models.test_result import TestResult, TestStepResult
+from ..models.dut_info import DutInfo
+from ..models.dut_status import DutStatus
 from ..dut_commands import DutCommands
 from ..services.api_client import ApiClient
 
@@ -32,6 +35,9 @@ class TestRunner:
         self.stop_event = stop_event
         self.test_result = None
         self.step_counter = 0
+
+        self.dut_info: Optional[DutInfo] = None
+        self.dut_status: Optional[DutStatus] = None
 
         # Controladores del HAL
         self.relay_controller: RelayController = None
@@ -218,11 +224,13 @@ class TestRunner:
         """Step 3: Checks DUT initial status."""
         self._start_step("step_check_initial_status")
 
-        status_data = self._get_dut_json_response(DutCommands.GET_STATUS)
+        device_info_dict = self._get_dut_json_response(DutCommands.GET_STATUS)
 
-        if status_data:
-            self.test_result.serial_number = status_data.get("imei", "NOT_READ")
-            self._report(f"Comunicación OK. Estado: {status_data.get('power_source')}", "PASS", details=status_data)
+        if device_info_dict:
+            self.dut_info = DutInfo.from_dict(device_info_dict)
+            self._report(f"Obtenido DeviceInfo. S/N: {self.dut_info.device_serial}, ")
+        else:
+            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
 
     def _test_step_measure_active_power(self):
         """Step 4: Measure INA3221 channels and report results."""
@@ -325,10 +333,13 @@ class TestRunner:
         """Step 10: Asks DUT for status, parses returned JSON and checks it meets the expected status."""
         self._start_step("test_step_check_board_status")
 
-        status_data = self._get_dut_json_response(DutCommands.GET_DEVICE_DATA)
+        device_status_dict = self._get_dut_json_response(DutCommands.GET_DEVICE_DATA)
 
-        if status_data:
-            self._report(f"Comunicación OK. Estado actual: {status_data.get('power_source')}", "PASS", details=status_data)
+        if device_status_dict:
+            self.dut_info = DutInfo.from_dict(device_status_dict)
+            self._report(f"Obtenido DeviceInfo. SN: {self.dut_info.device_serial}", "PASS", details=device_status_dict)
+        else:
+            self._report("Fallo al obtener DeviceInfo del DUT.", "FAIL")
 
     def _test_step_set_low_power_mode(self):
         """Step 11: Send command to put the device in low power mode."""
@@ -424,3 +435,18 @@ class TestRunner:
         except json.JSONDecodeError:
             self._report(f"Respuesta inválida (no es JSON): {response_lines}", "FAIL")
             return None
+
+    def _update_dut_status(self) -> bool:
+        """Pide el estado al DUT, lo parsea y actualiza self.dut_status."""
+        self._report("Solicitando estado actualizado del DUT...", "INFO")
+        status_dict = self._get_dut_json_response(DutCommands.GET_STATUS)
+
+        if status_dict:
+            self.dut_status = DutStatus.from_dict(status_dict)
+            # Pasamos el dict original a los detalles del log
+            self._report("Estado del DUT actualizado correctamente.", "PASS", details=status_dict)
+            return True
+        else:
+            self._report("No se pudo obtener o parsear el estado del DUT.", "FAIL")
+            self.dut_status = None
+            return False
